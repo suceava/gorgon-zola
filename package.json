@@ -1,0 +1,17 @@
+{
+  "name": "gorgon-zola",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "cdk"
+  ],
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build": "npm run -w cdk build",
+    "deploy": "npm run -w cdk deploy",
+    "deploy:frontend": "DEPLOY_SERVICE=frontend npm run -w cdk deploy",
+    "deploy:backend": "DEPLOY_SERVICE=backend npm run -w cdk deploy",
+    "deploy:services": "DEPLOY_SERVICE=services npm run -w cdk deploy"
+  }
+}
