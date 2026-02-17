@@ -1,4 +1,4 @@
-export interface VendorPrice {
+export interface PlayerPrice {
   itemId: string
   price: number
   timestamp: string

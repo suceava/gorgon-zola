@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+import { config } from 'dotenv'
+config({ path: '../.env' })
+
 import * as cdk from 'aws-cdk-lib'
 import { DatabaseStack } from '../lib/database-stack'
 import { ApiStack } from '../lib/api-stack'

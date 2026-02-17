@@ -1,60 +1,92 @@
 import type { ScheduledHandler } from 'aws-lambda'
-import { batchWrite, keys } from '../../lib/db/table.js'
-import { EntityType } from '../../lib/db/constants.js'
-import type { CdnItem } from '../../domain/items/types.js'
-import type { CdnRecipe } from '../../domain/recipes/types.js'
-
-const CDN_BASE = process.env.GORGON_CDN_BASE_URL ?? 'https://cdn.projectgorgon.com/v456/data'
+import { batchPut, keys, EntityType, type DbRecord } from '../../lib/db.js'
+const GAME_DATA_URL = process.env.GAME_DATA_URL!
 
 async function fetchJson<T>(filename: string): Promise<T> {
-  const res = await fetch(`${CDN_BASE}/${filename}`)
+  const res = await fetch(`${GAME_DATA_URL}/${filename}`)
   if (!res.ok) {
     throw new Error(`Failed to fetch ${filename}: ${res.status}`)
   }
   return res.json()
 }
 
-function transformItems(raw: Record<string, CdnItem>) {
-  return Object.entries(raw).map(([id, item]) => {
-    const { pk, sk } = keys.item(id)
+/** Raw game data shapes (PascalCase as they come over the wire) */
+interface RawItem {
+  Name: string
+  Value: number
+  InternalName: string
+  Description?: string
+  IconId?: number
+  Keywords?: string[]
+  MaxStackSize?: number
+  IsCrafted?: boolean
+  CraftingTargetLevel?: number
+  CraftPoints?: number
+}
+
+interface RawRecipe {
+  InternalName: string
+  Name: string
+  Description?: string
+  IconId?: number
+  Skill: string
+  SkillLevelReq: number
+  Ingredients: { ItemCode: number; StackSize: number; ChanceToConsume?: number; Desc?: string }[]
+  ResultItems: { ItemCode: number; StackSize: number; PercentChance?: number }[]
+  RewardSkill?: string
+  RewardSkillXp?: number
+}
+
+function parseId(key: string): string {
+  return key.split('_').pop()!
+}
+
+function transformItems(raw: Record<string, RawItem>) {
+  return Object.entries(raw).map(([key, item]) => {
+    const { pk, sk } = keys.item(key)
     return {
       pk,
       sk,
       entityType: EntityType.ITEM,
-      gsi1sk: (item.Name ?? '').toUpperCase(),
-      itemId: id,
+      entitySk: (item.Name ?? '').toUpperCase(),
+      id: parseId(key),
       name: item.Name,
       value: item.Value ?? 0,
-      keywords: item.Keywords ?? [],
+      internalName: item.InternalName,
+      description: item.Description,
       iconId: item.IconId,
+      keywords: item.Keywords ?? [],
       maxStackSize: item.MaxStackSize,
+      isCrafted: item.IsCrafted,
+      craftingTargetLevel: item.CraftingTargetLevel,
+      craftPoints: item.CraftPoints,
     }
   })
 }
 
-function transformRecipes(raw: Record<string, CdnRecipe>) {
-  const records: Record<string, unknown>[] = []
+function transformRecipes(raw: Record<string, RawRecipe>) {
+  const records: DbRecord[] = []
 
-  for (const [id, recipe] of Object.entries(raw)) {
+  for (const [key, recipe] of Object.entries(raw)) {
     // Recipe metadata record
-    const { pk, sk } = keys.recipe(id)
+    const { pk, sk } = keys.recipe(key)
     records.push({
       pk,
       sk,
       entityType: EntityType.RECIPE,
-      gsi1sk: `SKILL#${recipe.Skill}`,
-      recipeId: id,
+      entitySk: `SKILL#${recipe.Skill}`,
+      id: parseId(key),
       name: recipe.Name,
       skill: recipe.Skill,
       skillLevelReq: recipe.SkillLevelReq ?? 0,
       ingredients: (recipe.Ingredients ?? []).map((ing) => ({
-        itemCode: ing.ItemCode,
+        itemId: ing.ItemCode,
         stackSize: ing.StackSize ?? 1,
         chanceToConsume: ing.ChanceToConsume,
         desc: ing.Desc,
       })),
       results: (recipe.ResultItems ?? []).map((res) => ({
-        itemCode: res.ItemCode,
+        itemId: res.ItemCode,
         stackSize: res.StackSize ?? 1,
         percentChance: res.PercentChance,
       })),
@@ -64,14 +96,14 @@ function transformRecipes(raw: Record<string, CdnRecipe>) {
     // Ingredient index records (for "what can I craft with item X?" queries)
     for (const ing of recipe.Ingredients ?? []) {
       if (ing.ItemCode) {
-        const ingredientKey = keys.ingredient(`item_${ing.ItemCode}`, id)
+        const ingredientKey = keys.ingredient(`item_${ing.ItemCode}`, key)
         records.push({
           pk: ingredientKey.pk,
           sk: ingredientKey.sk,
-          recipeId: id,
+          recipeId: parseId(key),
           recipeName: recipe.Name,
           skill: recipe.Skill,
-          ingredientItemCode: ing.ItemCode,
+          ingredientItemId: ing.ItemCode,
           stackSize: ing.StackSize ?? 1,
         })
       }
@@ -85,8 +117,8 @@ export const handler: ScheduledHandler = async () => {
   console.log('Starting game data sync...')
 
   const [itemsRaw, recipesRaw] = await Promise.all([
-    fetchJson<Record<string, CdnItem>>('items.json'),
-    fetchJson<Record<string, CdnRecipe>>('recipes.json'),
+    fetchJson<Record<string, RawItem>>('items.json'),
+    fetchJson<Record<string, RawRecipe>>('recipes.json'),
   ])
 
   const itemRecords = transformItems(itemsRaw)
@@ -95,10 +127,10 @@ export const handler: ScheduledHandler = async () => {
   const recipeRecords = transformRecipes(recipesRaw)
   console.log(`Transformed ${recipeRecords.length} recipe records`)
 
-  await batchWrite(itemRecords)
+  await batchPut(itemRecords)
   console.log('Items written to DynamoDB')
 
-  await batchWrite(recipeRecords)
+  await batchPut(recipeRecords)
   console.log('Recipes written to DynamoDB')
 
   console.log('Sync complete')

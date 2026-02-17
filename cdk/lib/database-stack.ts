@@ -9,7 +9,7 @@ export class DatabaseStack extends cdk.Stack {
     super(scope, id, props)
 
     this.table = new dynamodb.Table(this, 'GorgonZolaTable', {
-      tableName: 'GorgonZola',
+      tableName: process.env.DYNAMODB_TABLE_NAME!,
       partitionKey: { name: 'pk', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'sk', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
@@ -18,9 +18,9 @@ export class DatabaseStack extends cdk.Stack {
     })
 
     this.table.addGlobalSecondaryIndex({
-      indexName: 'GSI1',
+      indexName: 'entityIndex',
       partitionKey: { name: 'entityType', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'gsi1sk', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'entitySk', type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
     })
   }

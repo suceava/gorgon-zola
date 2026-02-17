@@ -24,37 +24,38 @@ export class ApiStack extends cdk.Stack {
 
     const backendRoot = path.join(__dirname, '..', '..', 'backend')
 
-    // Lambda handlers
-    const itemsHandler = new nodejs.NodejsFunction(this, 'ItemsHandler', {
-      entry: path.join(backendRoot, 'src', 'api', 'items.ts'),
+    const commonProps = {
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_22_X,
       environment: commonEnv,
       timeout: cdk.Duration.seconds(10),
+    }
+
+    const getItems = new nodejs.NodejsFunction(this, 'GetItemsHandler', {
+      ...commonProps,
+      entry: path.join(backendRoot, 'src', 'api', 'get-items.ts'),
     })
 
-    const recipesHandler = new nodejs.NodejsFunction(this, 'RecipesHandler', {
-      entry: path.join(backendRoot, 'src', 'api', 'recipes.ts'),
-      handler: 'handler',
-      runtime: lambda.Runtime.NODEJS_22_X,
-      environment: commonEnv,
-      timeout: cdk.Duration.seconds(10),
+    const getRecipes = new nodejs.NodejsFunction(this, 'GetRecipesHandler', {
+      ...commonProps,
+      entry: path.join(backendRoot, 'src', 'api', 'get-recipes.ts'),
     })
 
-    const pricesHandler = new nodejs.NodejsFunction(this, 'PricesHandler', {
-      entry: path.join(backendRoot, 'src', 'api', 'prices.ts'),
-      handler: 'handler',
-      runtime: lambda.Runtime.NODEJS_22_X,
-      environment: commonEnv,
-      timeout: cdk.Duration.seconds(10),
+    const getPrices = new nodejs.NodejsFunction(this, 'GetPricesHandler', {
+      ...commonProps,
+      entry: path.join(backendRoot, 'src', 'api', 'get-prices.ts'),
     })
 
-    // Grant DynamoDB access
-    table.grantReadData(itemsHandler)
-    table.grantReadData(recipesHandler)
-    table.grantReadWriteData(pricesHandler)
+    const postPrice = new nodejs.NodejsFunction(this, 'PostPriceHandler', {
+      ...commonProps,
+      entry: path.join(backendRoot, 'src', 'api', 'post-price.ts'),
+    })
 
-    // HTTP API
+    table.grantReadData(getItems)
+    table.grantReadData(getRecipes)
+    table.grantReadData(getPrices)
+    table.grantReadWriteData(postPrice)
+
     const httpApi = new apigateway.HttpApi(this, 'GorgonZolaApi', {
       apiName: 'GorgonZola-Api',
       corsPreflight: {
@@ -67,19 +68,25 @@ export class ApiStack extends cdk.Stack {
     httpApi.addRoutes({
       path: '/api/items',
       methods: [apigateway.HttpMethod.GET],
-      integration: new integrations.HttpLambdaIntegration('ItemsIntegration', itemsHandler),
+      integration: new integrations.HttpLambdaIntegration('GetItemsIntegration', getItems),
     })
 
     httpApi.addRoutes({
       path: '/api/recipes',
       methods: [apigateway.HttpMethod.GET],
-      integration: new integrations.HttpLambdaIntegration('RecipesIntegration', recipesHandler),
+      integration: new integrations.HttpLambdaIntegration('GetRecipesIntegration', getRecipes),
     })
 
     httpApi.addRoutes({
       path: '/api/prices',
-      methods: [apigateway.HttpMethod.GET, apigateway.HttpMethod.POST],
-      integration: new integrations.HttpLambdaIntegration('PricesIntegration', pricesHandler),
+      methods: [apigateway.HttpMethod.GET],
+      integration: new integrations.HttpLambdaIntegration('GetPricesIntegration', getPrices),
+    })
+
+    httpApi.addRoutes({
+      path: '/api/prices',
+      methods: [apigateway.HttpMethod.POST],
+      integration: new integrations.HttpLambdaIntegration('PostPriceIntegration', postPrice),
     })
 
     new cdk.CfnOutput(this, 'ApiUrl', {
