@@ -8,6 +8,27 @@ import { ApiStack } from '../lib/api-stack'
 import { FrontendStack } from '../lib/frontend-stack'
 import { DataSyncStack } from '../lib/data-sync-stack'
 
+type StackConfig = {
+  StackClass: new (scope: cdk.App, id: string, props?: cdk.StackProps) => cdk.Stack
+  id: string
+  dependencies?: string[]
+}
+
+const stackConfigs: Record<string, StackConfig[]> = {
+  database: [
+    { StackClass: DatabaseStack, id: 'GorgonZola-Database' },
+  ],
+  backend: [
+    { StackClass: ApiStack, id: 'GorgonZola-Api', dependencies: ['GorgonZola-Database'] },
+  ],
+  frontend: [
+    { StackClass: FrontendStack, id: 'GorgonZola-Frontend' },
+  ],
+  services: [
+    { StackClass: DataSyncStack, id: 'GorgonZola-DataSync', dependencies: ['GorgonZola-Database'] },
+  ],
+}
+
 const app = new cdk.App()
 
 const env = {
@@ -17,25 +38,25 @@ const env = {
 
 const deployService = process.env.DEPLOY_SERVICE ?? 'all'
 
-// Database is always synthesized (other stacks depend on it)
-const database = new DatabaseStack(app, 'GorgonZola-Database', { env })
+// Database is always deployed — other stacks depend on its CloudFormation exports
+const deploySections = deployService === 'all'
+  ? Object.keys(stackConfigs)
+  : ['database', deployService]
 
-if (deployService === 'all' || deployService === 'backend') {
-  const api = new ApiStack(app, 'GorgonZola-Api', {
-    env,
-    table: database.table,
-  })
-  api.addDependency(database)
-}
+const stackMap: Record<string, cdk.Stack> = {}
 
-if (deployService === 'all' || deployService === 'frontend') {
-  new FrontendStack(app, 'GorgonZola-Frontend', { env })
-}
+for (const section of deploySections) {
+  const configs = stackConfigs[section]
+  if (!configs) continue
 
-if (deployService === 'all' || deployService === 'services') {
-  const sync = new DataSyncStack(app, 'GorgonZola-DataSync', {
-    env,
-    table: database.table,
-  })
-  sync.addDependency(database)
+  for (const { StackClass, id, dependencies } of configs) {
+    const stack = new StackClass(app, id, { env })
+    stackMap[id] = stack
+
+    dependencies?.forEach(depId => {
+      if (stackMap[depId]) {
+        stack.addDependency(stackMap[depId])
+      }
+    })
+  }
 }

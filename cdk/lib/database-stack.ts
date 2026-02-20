@@ -23,5 +23,10 @@ export class DatabaseStack extends cdk.Stack {
       sortKey: { name: 'entitySk', type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
     })
+
+    new cdk.CfnOutput(this, 'TableArn', {
+      value: this.table.tableArn,
+      exportName: 'GorgonZola-TableArn',
+    })
   }
 }

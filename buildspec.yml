@@ -1,0 +1,14 @@
+version: 0.2
+
+phases:
+  install:
+    on-failure: ABORT
+    runtime-versions:
+      nodejs: latest
+    commands:
+      - npm install
+      - cd frontend && npm install && cd ..
+  build:
+    commands:
+      - echo Deploying GorgonZola on `date`
+      - npm run deploy

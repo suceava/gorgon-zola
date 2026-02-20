@@ -1,34 +1,23 @@
-import * as cdk from "aws-cdk-lib";
-import * as lambda from "aws-cdk-lib/aws-lambda";
-import * as nodejs from "aws-cdk-lib/aws-lambda-nodejs";
-import * as events from "aws-cdk-lib/aws-events";
-import * as targets from "aws-cdk-lib/aws-events-targets";
-import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
-import type { Construct } from "constructs";
-import * as path from "path";
-
-interface DataSyncStackProps extends cdk.StackProps {
-  table: dynamodb.Table;
-}
+import * as cdk from 'aws-cdk-lib'
+import * as lambda from 'aws-cdk-lib/aws-lambda'
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
+import { NodejsFunction, OutputFormat } from 'aws-cdk-lib/aws-lambda-nodejs'
+import * as events from 'aws-cdk-lib/aws-events'
+import * as targets from 'aws-cdk-lib/aws-events-targets'
+import type { Construct } from 'constructs'
+import * as path from 'path'
 
 export class DataSyncStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props: DataSyncStackProps) {
-    super(scope, id, props);
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+    super(scope, id, props)
 
-    const { table } = props;
+    const table = dynamodb.Table.fromTableArn(this, 'Table',
+      cdk.Fn.importValue('GorgonZola-TableArn'),
+    )
 
-    const syncHandler = new nodejs.NodejsFunction(this, "SyncGameDataHandler", {
-      entry: path.join(
-        __dirname,
-        "..",
-        "..",
-        "backend",
-        "src",
-        "services",
-        "sync-game-data",
-        "handler.ts",
-      ),
-      handler: "handler",
+    const syncHandler = new NodejsFunction(this, 'SyncGameDataHandler', {
+      entry: path.join(__dirname, '..', '..', 'backend', 'src', 'services', 'sync-game-data', 'handler.ts'),
+      handler: 'handler',
       runtime: lambda.Runtime.NODEJS_22_X,
       environment: {
         DYNAMODB_TABLE_NAME: table.tableName,
@@ -36,15 +25,22 @@ export class DataSyncStack extends cdk.Stack {
       },
       timeout: cdk.Duration.minutes(15),
       memorySize: 512,
-    });
+      bundling: {
+        externalModules: [],
+        minify: true,
+        sourceMap: false,
+        format: OutputFormat.ESM,
+        banner:
+          'import { createRequire } from "module"; const require = createRequire(import.meta.url);',
+      },
+    })
 
-    table.grantWriteData(syncHandler);
+    table.grantWriteData(syncHandler)
 
-    // Run daily at 8 AM UTC
-    const rule = new events.Rule(this, "DailySyncRule", {
-      schedule: events.Schedule.cron({ minute: "0", hour: "8" }),
-    });
+    const rule = new events.Rule(this, 'DailySyncRule', {
+      schedule: events.Schedule.cron({ minute: '0', hour: '8' }),
+    })
 
-    rule.addTarget(new targets.LambdaFunction(syncHandler));
+    rule.addTarget(new targets.LambdaFunction(syncHandler))
   }
 }

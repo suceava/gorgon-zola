@@ -3,9 +3,15 @@ import * as s3 from 'aws-cdk-lib/aws-s3'
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment'
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront'
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins'
+import * as route53 from 'aws-cdk-lib/aws-route53'
+import * as route53Targets from 'aws-cdk-lib/aws-route53-targets'
+import * as acm from 'aws-cdk-lib/aws-certificatemanager'
 import type { Construct } from 'constructs'
 import { execSync } from 'child_process'
 import * as path from 'path'
+import { resolveExport } from './helpers'
+
+const DOMAIN = process.env.SITE_DOMAIN!
 
 export class FrontendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -13,31 +19,39 @@ export class FrontendStack extends cdk.Stack {
 
     const frontendDir = path.join(__dirname, '..', '..', 'frontend')
 
-    // Build frontend
-    const apiUrl = cdk.Fn.importValue('GorgonZola-ApiUrl')
+    const hostedZone = route53.HostedZone.fromLookup(this, 'HostedZone', {
+      domainName: DOMAIN.split('.').slice(1).join('.'),
+    })
+
+    const certificate = acm.Certificate.fromCertificateArn(this, 'Certificate',
+      process.env.WILDCARD_CERT_ARN!,
+    )
+
+    const apiUrl = resolveExport('GorgonZola-ApiUrl')
 
     execSync('npm ci && npm run build', {
       cwd: frontendDir,
       stdio: 'inherit',
       env: {
         ...process.env,
-        VITE_API_URL: apiUrl.toString(),
+        VITE_API_URL: apiUrl,
       },
     })
 
-    // S3 bucket for SPA
     const bucket = new s3.Bucket(this, 'FrontendBucket', {
+      bucketName: DOMAIN,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
     })
 
-    // CloudFront distribution
     const distribution = new cloudfront.Distribution(this, 'FrontendDistribution', {
       defaultBehavior: {
         origin: origins.S3BucketOrigin.withOriginAccessControl(bucket),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       },
+      domainNames: [DOMAIN],
+      certificate,
       defaultRootObject: 'index.html',
       errorResponses: [
         {
@@ -53,7 +67,14 @@ export class FrontendStack extends cdk.Stack {
       ],
     })
 
-    // Deploy built assets to S3
+    new route53.ARecord(this, 'AliasRecord', {
+      zone: hostedZone,
+      recordName: DOMAIN,
+      target: route53.RecordTarget.fromAlias(
+        new route53Targets.CloudFrontTarget(distribution),
+      ),
+    })
+
     new s3deploy.BucketDeployment(this, 'DeployFrontend', {
       sources: [s3deploy.Source.asset(path.join(frontendDir, 'dist'))],
       destinationBucket: bucket,
@@ -61,8 +82,8 @@ export class FrontendStack extends cdk.Stack {
       distributionPaths: ['/*'],
     })
 
-    new cdk.CfnOutput(this, 'DistributionUrl', {
-      value: `https://${distribution.distributionDomainName}`,
+    new cdk.CfnOutput(this, 'SiteUrl', {
+      value: `https://${DOMAIN}`,
     })
   }
 }
