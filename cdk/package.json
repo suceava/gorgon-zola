@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "build": "tsc",
-    "deploy": "cdk deploy --all",
-    "synth": "cdk synth"
+    "deploy": "npx cdk deploy --all --require-approval never",
+    "synth": "npx cdk synth"
   },
   "dependencies": {
     "aws-cdk-lib": "^2.170.0",
@@ -13,6 +13,7 @@
     "dotenv": "^17.3.1"
   },
   "devDependencies": {
+    "aws-cdk": "^2.170.0",
     "typescript": "^5.7.0"
   }
 }
