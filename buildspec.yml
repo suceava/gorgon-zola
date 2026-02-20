@@ -11,4 +11,5 @@ phases:
   build:
     commands:
       - echo Deploying GorgonZola on `date`
+      - cd cdk && npx cdk bootstrap aws://$CDK_DEFAULT_ACCOUNT/$AWS_REGION && cd ..
       - npm run deploy
