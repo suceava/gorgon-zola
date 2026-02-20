@@ -7,6 +7,8 @@ import * as targets from 'aws-cdk-lib/aws-events-targets'
 import type { Construct } from 'constructs'
 import * as path from 'path'
 
+const GAME_DATA_URL = process.env.GAME_DATA_URL!
+
 export class DataSyncStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props)
@@ -21,7 +23,7 @@ export class DataSyncStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_22_X,
       environment: {
         DYNAMODB_TABLE_NAME: table.tableName,
-        GAME_DATA_URL: process.env.GAME_DATA_URL!,
+        GAME_DATA_URL,
       },
       timeout: cdk.Duration.minutes(15),
       memorySize: 512,

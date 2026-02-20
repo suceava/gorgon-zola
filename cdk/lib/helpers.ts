@@ -4,26 +4,6 @@ import { NodejsFunction, OutputFormat } from 'aws-cdk-lib/aws-lambda-nodejs'
 import { HttpApi, HttpMethod } from 'aws-cdk-lib/aws-apigatewayv2'
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations'
 import type { Construct } from 'constructs'
-import { execSync } from 'child_process'
-
-/**
- * Resolves a CloudFormation export value at synthesis time via the AWS CLI.
- * Use this instead of Fn.importValue when the value is needed during synthesis
- * (e.g. passing an API URL to a frontend build).
- */
-export function resolveExport(exportName: string): string {
-  const region = process.env.AWS_REGION ?? 'us-east-1'
-  const output = execSync(
-    `aws cloudformation list-exports --region ${region} --query "Exports[?Name=='${exportName}'].Value" --output text`,
-    { encoding: 'utf-8' },
-  ).trim()
-
-  if (!output) {
-    throw new Error(`CloudFormation export "${exportName}" not found. Deploy the dependent stack first.`)
-  }
-
-  return output
-}
 
 export interface RouteConfig {
   entry: string

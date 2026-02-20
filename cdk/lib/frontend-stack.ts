@@ -9,9 +9,11 @@ import * as acm from 'aws-cdk-lib/aws-certificatemanager'
 import type { Construct } from 'constructs'
 import { execSync } from 'child_process'
 import * as path from 'path'
-import { resolveExport } from './helpers'
 
-const DOMAIN = process.env.SITE_DOMAIN!
+const SITE_DOMAIN = process.env.SITE_DOMAIN!
+const SITE_URL = process.env.SITE_URL!
+const API_URL = process.env.API_URL!
+const WILDCARD_CERT_ARN = process.env.WILDCARD_CERT_ARN!
 
 export class FrontendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -20,26 +22,24 @@ export class FrontendStack extends cdk.Stack {
     const frontendDir = path.join(__dirname, '..', '..', 'frontend')
 
     const hostedZone = route53.HostedZone.fromLookup(this, 'HostedZone', {
-      domainName: DOMAIN.split('.').slice(1).join('.'),
+      domainName: SITE_DOMAIN,
     })
 
     const certificate = acm.Certificate.fromCertificateArn(this, 'Certificate',
-      process.env.WILDCARD_CERT_ARN!,
+      WILDCARD_CERT_ARN,
     )
-
-    const apiUrl = resolveExport('GorgonZola-ApiUrl')
 
     execSync('npm ci && npm run build', {
       cwd: frontendDir,
       stdio: 'inherit',
       env: {
         ...process.env,
-        VITE_API_URL: apiUrl,
+        VITE_API_URL: `https://${API_URL}`,
       },
     })
 
     const bucket = new s3.Bucket(this, 'FrontendBucket', {
-      bucketName: DOMAIN,
+      bucketName: SITE_URL,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
@@ -50,7 +50,7 @@ export class FrontendStack extends cdk.Stack {
         origin: origins.S3BucketOrigin.withOriginAccessControl(bucket),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       },
-      domainNames: [DOMAIN],
+      domainNames: [SITE_URL],
       certificate,
       defaultRootObject: 'index.html',
       errorResponses: [
@@ -69,7 +69,7 @@ export class FrontendStack extends cdk.Stack {
 
     new route53.ARecord(this, 'AliasRecord', {
       zone: hostedZone,
-      recordName: DOMAIN,
+      recordName: SITE_URL,
       target: route53.RecordTarget.fromAlias(
         new route53Targets.CloudFrontTarget(distribution),
       ),
@@ -83,7 +83,7 @@ export class FrontendStack extends cdk.Stack {
     })
 
     new cdk.CfnOutput(this, 'SiteUrl', {
-      value: `https://${DOMAIN}`,
+      value: `https://${SITE_URL}`,
     })
   }
 }
