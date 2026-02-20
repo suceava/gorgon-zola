@@ -10,6 +10,7 @@ import { createApiLambdas } from './helpers'
 
 const SITE_DOMAIN = process.env.SITE_DOMAIN!
 const API_URL = process.env.API_URL!
+const HOSTED_ZONE_ID = process.env.HOSTED_ZONE_ID!
 const ADMIN_SECRET = process.env.ADMIN_SECRET ?? 'change-me'
 const WILDCARD_CERT_ARN = process.env.WILDCARD_CERT_ARN!
 
@@ -21,8 +22,9 @@ export class ApiStack extends cdk.Stack {
       cdk.Fn.importValue('GorgonZola-TableArn'),
     )
 
-    const hostedZone = route53.HostedZone.fromLookup(this, 'HostedZone', {
-      domainName: SITE_DOMAIN,
+    const hostedZone = route53.HostedZone.fromHostedZoneAttributes(this, 'HostedZone', {
+      hostedZoneId: HOSTED_ZONE_ID,
+      zoneName: SITE_DOMAIN,
     })
 
     const certificate = acm.Certificate.fromCertificateArn(this, 'Certificate',

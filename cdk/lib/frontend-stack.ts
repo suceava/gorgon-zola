@@ -13,6 +13,7 @@ import * as path from 'path'
 const SITE_DOMAIN = process.env.SITE_DOMAIN!
 const SITE_URL = process.env.SITE_URL!
 const API_URL = process.env.API_URL!
+const HOSTED_ZONE_ID = process.env.HOSTED_ZONE_ID!
 const WILDCARD_CERT_ARN = process.env.WILDCARD_CERT_ARN!
 
 export class FrontendStack extends cdk.Stack {
@@ -21,8 +22,9 @@ export class FrontendStack extends cdk.Stack {
 
     const frontendDir = path.join(__dirname, '..', '..', 'frontend')
 
-    const hostedZone = route53.HostedZone.fromLookup(this, 'HostedZone', {
-      domainName: SITE_DOMAIN,
+    const hostedZone = route53.HostedZone.fromHostedZoneAttributes(this, 'HostedZone', {
+      hostedZoneId: HOSTED_ZONE_ID,
+      zoneName: SITE_DOMAIN,
     })
 
     const certificate = acm.Certificate.fromCertificateArn(this, 'Certificate',
