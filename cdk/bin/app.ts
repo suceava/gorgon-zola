@@ -22,7 +22,7 @@ const stackConfigs: Record<string, StackConfig[]> = {
     { StackClass: ApiStack, id: 'GorgonZola-Api', dependencies: ['GorgonZola-Database'] },
   ],
   frontend: [
-    { StackClass: FrontendStack, id: 'GorgonZola-Frontend' },
+    { StackClass: FrontendStack, id: 'GorgonZola-Frontend', dependencies: ['GorgonZola-Api', 'GorgonZola-DataSync'] },
   ],
   services: [
     { StackClass: DataSyncStack, id: 'GorgonZola-DataSync', dependencies: ['GorgonZola-Database'] },
