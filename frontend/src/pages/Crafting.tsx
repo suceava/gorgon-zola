@@ -1,5 +1,5 @@
-import { InventoryManager } from '../components/InventoryManager.tsx'
-import { CraftingResults } from '../components/CraftingResults.tsx'
+import { CraftingResults } from '../components/CraftingResults.tsx';
+import { InventoryManager } from '../components/InventoryManager.tsx';
 
 export function Crafting() {
   return (
@@ -10,5 +10,5 @@ export function Crafting() {
         <CraftingResults />
       </div>
     </div>
-  )
+  );
 }

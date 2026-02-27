@@ -1,6 +1,6 @@
 interface PriceDisplayProps {
-  npcValue: number
-  vendorPrice?: number
+  npcValue: number;
+  vendorPrice?: number;
 }
 
 export function PriceDisplay({ npcValue, vendorPrice }: PriceDisplayProps) {
@@ -15,5 +15,5 @@ export function PriceDisplay({ npcValue, vendorPrice }: PriceDisplayProps) {
         </span>
       )}
     </div>
-  )
+  );
 }

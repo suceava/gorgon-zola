@@ -1,9 +1,9 @@
-import { Routes, Route } from 'react-router-dom'
-import { Nav } from './components/Nav.tsx'
-import { Home } from './pages/Home.tsx'
-import { Crafting } from './pages/Crafting.tsx'
-import { Items } from './pages/Items.tsx'
-import { Admin } from './pages/Admin.tsx'
+import { Route, Routes } from 'react-router-dom';
+import { Nav } from './components/Nav.tsx';
+import { Admin } from './pages/Admin.tsx';
+import { Crafting } from './pages/Crafting.tsx';
+import { Home } from './pages/Home.tsx';
+import { Items } from './pages/Items.tsx';
 
 export function App() {
   return (
@@ -18,5 +18,5 @@ export function App() {
         </Routes>
       </main>
     </div>
-  )
+  );
 }

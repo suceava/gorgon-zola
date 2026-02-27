@@ -21,7 +21,7 @@ DynamoDB                               (single table)
 
 ## Tech Stack
 
-- **Frontend**: Vite + React + TypeScript + Tailwind CSS v4 + React Router
+- **Frontend**: Vite + React + TypeScript + Tailwind CSS v4 + React Router + TanStack Query
 - **Backend**: TypeScript Lambda handlers, AWS SDK v3
 - **Database**: DynamoDB single-table design
 - **Infrastructure**: AWS CDK (TypeScript)
@@ -30,7 +30,10 @@ DynamoDB                               (single table)
 ## Project Structure
 
 - `cdk/` - Infrastructure ONLY. No application code. References backend/frontend via paths.
+  - `createApiLambdas` helper takes `initialPolicy` (IAM PolicyStatements) and creates a shared role. Callers pass permissions in, never grant externally.
 - `frontend/` - Vite React SPA. Not a workspace. Built by CDK during synthesis.
+  - `src/api/fetch.ts` - Raw fetch wrapper (`apiGet`, `apiPost`). No framework dependency.
+  - `src/api/hooks.ts` - TanStack Query hooks wrapping fetch. Components import hooks, not fetch directly. If swapping TanStack Query, only this file changes.
 - `backend/` - All backend code (workspace). Uses **repository pattern** for data access.
   - `src/api/` - Thin Lambda handlers. One file per HTTP method+resource (e.g. `get-items.ts`, `post-price.ts`). Handlers only parse requests, call repository methods, and return JSON. No DynamoDB details, no PK/SK strings, no business logic.
   - `src/services/` - Background Lambda handlers (e.g. sync-game-data).
@@ -89,3 +92,5 @@ entityIndex (GSI): PK=entityType (ITEM/RECIPE), SK=entitySk (name/skill)
 - Handlers never touch DynamoDB directly — they call repository methods
 - One handler per HTTP method+resource — no multi-method handlers
 - lib/ is generic only — no domain knowledge leaks into utilities
+- API routes have no `/api` prefix — the API lives on its own subdomain (`gorgon-api.gnarlybits.com`)
+- CDK helpers own Lambda permissions — `createApiLambdas` accepts `initialPolicy`, creates a shared IAM role. Stacks never call `grantReadWriteData` on returned lambdas.

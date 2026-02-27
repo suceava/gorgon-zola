@@ -1,6 +1,6 @@
 export interface PlayerPrice {
-  itemId: string
-  price: number
-  timestamp: string
-  notes?: string
+  itemId: string;
+  price: number;
+  timestamp: string;
+  notes?: string;
 }

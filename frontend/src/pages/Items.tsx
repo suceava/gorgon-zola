@@ -1,4 +1,4 @@
-import { ItemSearch } from '../components/ItemSearch.tsx'
+import { ItemSearch } from '../components/ItemSearch.tsx';
 
 export function Items() {
   return (
@@ -6,5 +6,5 @@ export function Items() {
       <h1 className="text-2xl font-bold">Item Browser</h1>
       <ItemSearch />
     </div>
-  )
+  );
 }

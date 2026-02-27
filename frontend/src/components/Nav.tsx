@@ -1,14 +1,14 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom';
 
 const links = [
   { to: '/', label: 'Home' },
   { to: '/crafting', label: 'Crafting' },
   { to: '/items', label: 'Items' },
   { to: '/admin', label: 'Admin' },
-]
+];
 
 export function Nav() {
-  const location = useLocation()
+  const location = useLocation();
 
   return (
     <nav className="bg-gray-800 border-b border-gray-700">
@@ -33,5 +33,5 @@ export function Nav() {
         </div>
       </div>
     </nav>
-  )
+  );
 }

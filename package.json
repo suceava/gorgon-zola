@@ -12,6 +12,12 @@
     "deploy": "npm run -w cdk deploy",
     "deploy:frontend": "DEPLOY_SERVICE=frontend npm run -w cdk deploy",
     "deploy:backend": "DEPLOY_SERVICE=backend npm run -w cdk deploy",
-    "deploy:services": "DEPLOY_SERVICE=services npm run -w cdk deploy"
+    "deploy:services": "DEPLOY_SERVICE=services npm run -w cdk deploy",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.8.1",
+    "prettier-plugin-organize-imports": "^4.3.0"
   }
 }

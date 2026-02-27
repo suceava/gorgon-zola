@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState } from 'react';
 
 export function Admin() {
-  const [secret, setSecret] = useState('')
-  const [authenticated, setAuthenticated] = useState(false)
+  const [secret, setSecret] = useState('');
+  const [authenticated, setAuthenticated] = useState(false);
 
   if (!authenticated) {
     return (
@@ -25,7 +25,7 @@ export function Admin() {
           </button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -33,5 +33,5 @@ export function Admin() {
       <h1 className="text-2xl font-bold">Vendor Price Management</h1>
       <p className="text-gray-400">Price editor coming soon.</p>
     </div>
-  )
+  );
 }
