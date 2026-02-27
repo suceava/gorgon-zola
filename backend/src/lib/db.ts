@@ -11,6 +11,8 @@ const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env
 export const EntityType = {
   ITEM: 'ITEM',
   RECIPE: 'RECIPE',
+  NPC: 'NPC',
+  QUEST: 'QUEST',
 } as const;
 
 export type EntityType = (typeof EntityType)[keyof typeof EntityType];
@@ -26,10 +28,8 @@ export interface DbRecord {
 export const keys = {
   item: (id: string) => ({ pk: `ITEM#${id}`, sk: 'METADATA' }),
   recipe: (id: string) => ({ pk: `RECIPE#${id}`, sk: 'METADATA' }),
-  ingredient: (itemId: string, recipeId: string) => ({
-    pk: `INGREDIENT#${itemId}`,
-    sk: `RECIPE#${recipeId}`,
-  }),
+  npc: (id: string) => ({ pk: `NPC#${id}`, sk: 'METADATA' }),
+  quest: (id: string) => ({ pk: `QUEST#${id}`, sk: 'METADATA' }),
   price: (itemId: string, timestamp: string) => ({
     pk: `ITEM#${itemId}`,
     sk: `PRICE#${timestamp}`,

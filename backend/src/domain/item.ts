@@ -1,5 +1,20 @@
 import { EntityType, get, keys, queryIndex } from '../lib/db.js';
 
+export interface ItemSource {
+  type: string;
+  npc?: string;
+  recipeId?: number;
+  questId?: number;
+  hangOutId?: number;
+  itemTypeId?: number;
+}
+
+export interface ItemRecipe {
+  recipeId: string;
+  recipeName: string;
+  skill: string;
+}
+
 export interface GameItem {
   id: string;
   name: string;
@@ -12,6 +27,8 @@ export interface GameItem {
   isCrafted?: boolean;
   craftingTargetLevel?: number;
   craftPoints?: number;
+  sources?: ItemSource[];
+  recipes?: ItemRecipe[];
 }
 
 export class ItemRepository {

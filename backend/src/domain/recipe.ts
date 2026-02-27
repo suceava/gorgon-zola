@@ -1,4 +1,4 @@
-import { EntityType, get, keys, query, queryIndex } from '../lib/db.js';
+import { EntityType, get, keys, queryIndex } from '../lib/db.js';
 
 export interface RecipeIngredient {
   itemId: number;
@@ -26,24 +26,11 @@ export interface GameRecipe {
   results: RecipeResult[];
 }
 
-export interface IngredientIndex {
-  recipeId: string;
-  recipeName: string;
-  skill: string;
-  ingredientItemId: number;
-  stackSize: number;
-}
-
 export class RecipeRepository {
   static async findById(id: string): Promise<GameRecipe | undefined> {
     const { pk, sk } = keys.recipe(id);
     const record = await get(pk, sk);
     return record ? RecipeRepository.stripRecipe(record) : undefined;
-  }
-
-  static async findByIngredient(itemId: string): Promise<IngredientIndex[]> {
-    const records = await query(`INGREDIENT#${itemId}`);
-    return records.map(RecipeRepository.stripIngredientIndex);
   }
 
   static async findBySkill(skill: string): Promise<GameRecipe[]> {
@@ -60,7 +47,4 @@ export class RecipeRepository {
     return recipe as unknown as GameRecipe;
   }
 
-  private static stripIngredientIndex({ pk, sk, ...record }: Record<string, unknown>): IngredientIndex {
-    return record as unknown as IngredientIndex;
-  }
 }
