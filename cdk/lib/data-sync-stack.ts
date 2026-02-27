@@ -40,6 +40,7 @@ export class DataSyncStack extends cdk.Stack {
     table.grantWriteData(syncHandler)
 
     const rule = new events.Rule(this, 'DailySyncRule', {
+      ruleName: 'GorgonZola-DailyGameDataSync',
       schedule: events.Schedule.cron({ minute: '0', hour: '8' }),
     })
 
