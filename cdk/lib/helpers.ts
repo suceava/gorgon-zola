@@ -1,4 +1,5 @@
 import * as cdk from 'aws-cdk-lib'
+import * as iam from 'aws-cdk-lib/aws-iam'
 import * as lambda from 'aws-cdk-lib/aws-lambda'
 import { NodejsFunction, OutputFormat } from 'aws-cdk-lib/aws-lambda-nodejs'
 import { HttpApi, HttpMethod } from 'aws-cdk-lib/aws-apigatewayv2'
@@ -13,6 +14,7 @@ export interface RouteConfig {
 export interface CreateApiLambdasOptions {
   api: HttpApi
   environment: Record<string, string>
+  initialPolicy?: iam.PolicyStatement[]
   timeout?: cdk.Duration
   memorySize?: number
 }
@@ -28,8 +30,8 @@ const bundling = {
 
 /**
  * Creates Lambda functions wired to HTTP API routes from a config map.
- * Route keys follow the format "METHOD /path" (e.g. "GET /api/items").
- * Returns the created functions for permission granting.
+ * Route keys follow the format "METHOD /path" (e.g. "GET /items").
+ * All functions share a single IAM role with the provided initialPolicy.
  */
 export function createApiLambdas(
   scope: Construct,
@@ -39,9 +41,20 @@ export function createApiLambdas(
   const {
     api,
     environment,
+    initialPolicy = [],
     timeout = cdk.Duration.seconds(10),
     memorySize = 512,
   } = options
+
+  const role = new iam.Role(scope, 'ApiLambdaRole', {
+    assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+    managedPolicies: [
+      iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+    ],
+    inlinePolicies: initialPolicy.length > 0
+      ? { apiPolicy: new iam.PolicyDocument({ statements: initialPolicy }) }
+      : undefined,
+  })
 
   const lambdas: NodejsFunction[] = []
 
@@ -64,6 +77,7 @@ export function createApiLambdas(
       timeout,
       memorySize,
       environment,
+      role,
       bundling,
     })
 
