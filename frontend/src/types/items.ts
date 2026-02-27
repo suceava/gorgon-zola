@@ -1,9 +1,13 @@
 export interface Item {
-  itemId: string
+  id: string
   name: string
   value: number
-  keywords: string[]
+  internalName: string
   description?: string
   iconId?: number
+  keywords?: string[]
   maxStackSize?: number
+  isCrafted?: boolean
+  craftingTargetLevel?: number
+  craftPoints?: number
 }

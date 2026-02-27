@@ -60,10 +60,10 @@ export class ApiStack extends cdk.Stack {
     const base = path.join(__dirname, '..', '..', 'backend', 'src', 'api')
 
     const lambdas = createApiLambdas(this, {
-      'GET /api/items':   { entry: path.join(base, 'get-items.ts') },
-      'GET /api/recipes': { entry: path.join(base, 'get-recipes.ts') },
-      'GET /api/prices':  { entry: path.join(base, 'get-prices.ts') },
-      'POST /api/prices': { entry: path.join(base, 'post-price.ts') },
+      'GET /items':   { entry: path.join(base, 'get-items.ts') },
+      'GET /recipes': { entry: path.join(base, 'get-recipes.ts') },
+      'GET /prices':  { entry: path.join(base, 'get-prices.ts') },
+      'POST /prices': { entry: path.join(base, 'post-price.ts') },
     }, {
       api,
       environment: {
