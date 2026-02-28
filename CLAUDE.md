@@ -37,7 +37,7 @@ DynamoDB                               (single table)
 - `backend/` - All backend code (workspace). Uses **repository pattern** for data access.
   - `src/api/` - Thin Lambda handlers. One file per HTTP method+resource (e.g. `get-items.ts`, `post-price.ts`). Handlers only parse requests, call repository methods, and return JSON. No DynamoDB details, no PK/SK strings, no business logic.
   - `src/services/` - Background Lambda handlers (e.g. sync-game-data).
-  - `src/domain/` - Domain types + repository classes. One file per entity (`item.ts`, `recipe.ts`, `price.ts`). Each file exports the type interfaces and a static repository class (e.g. `ItemRepository`, `RecipeRepository`, `PriceRepository`). Repository methods return clean domain types — DB fields (`pk`, `sk`, `entityType`, `entitySk`) are stripped via private `strip` methods. NOT one folder per entity — flat files, named after the entity.
+  - `src/domain/` - Domain types + repository classes. One file per entity (`item.ts`, `recipe.ts`, `price.ts`). Each file exports the type interfaces and a static repository class (e.g. `ItemRepository`, `RecipeRepository`, `PriceRepository`). Repository methods return clean domain types — DB fields (`pk`, `sk`, `entityType`) are stripped via private `strip` methods. NOT one folder per entity — flat files, named after the entity.
   - `src/lib/` - Generic utilities only. `db.ts` is a single file with the DynamoDB client, table config, and typed generic operations (`get`, `put`, `query`, `queryIndex`, `batchPut`). No domain knowledge in lib.
 
 ## Code Conventions
@@ -263,7 +263,7 @@ All relationships are embedded on both sides (denormalized, rebuilt nightly by s
 - **Provides**: NPC/Quest/Recipe → items they provide/produce. Reverse on Item via `sources[]`.
 - **Consumes**: Recipe → items it uses as ingredients. Reverse on Item via `recipes[]`.
 
-entityIndex (GSI): PK=entityType (ITEM/RECIPE/NPC/QUEST), SK=entitySk (name/skill/area)
+entityIndex (GSI): PK=entityType (ITEM/RECIPE/NPC/QUEST), SK=name
 
 ## Auth & Access
 

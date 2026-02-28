@@ -21,12 +21,12 @@ export class NpcRepository {
     return record ? NpcRepository.strip(record) : undefined;
   }
 
-  static async search(prefix?: string): Promise<GameNpc[]> {
-    const records = await queryIndex(EntityType.NPC, prefix ? prefix.toUpperCase() : undefined);
+  static async search(query?: string): Promise<GameNpc[]> {
+    const records = await queryIndex(EntityType.NPC, query);
     return records.map(NpcRepository.strip);
   }
 
-  private static strip({ pk, sk, entityType, entitySk, ...npc }: Record<string, unknown>): GameNpc {
+  private static strip({ pk, sk, entityType, ...npc }: Record<string, unknown>): GameNpc {
     return npc as unknown as GameNpc;
   }
 }

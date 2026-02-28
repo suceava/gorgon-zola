@@ -38,12 +38,12 @@ export class ItemRepository {
     return record ? ItemRepository.strip(record) : undefined;
   }
 
-  static async search(prefix?: string): Promise<GameItem[]> {
-    const records = await queryIndex(EntityType.ITEM, prefix ? prefix.toUpperCase() : undefined);
+  static async search(query?: string): Promise<GameItem[]> {
+    const records = await queryIndex(EntityType.ITEM, query);
     return records.map(ItemRepository.strip);
   }
 
-  private static strip({ pk, sk, entityType, entitySk, ...item }: Record<string, unknown>): GameItem {
+  private static strip({ pk, sk, entityType, ...item }: Record<string, unknown>): GameItem {
     return item as unknown as GameItem;
   }
 }

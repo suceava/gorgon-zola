@@ -36,8 +36,8 @@ export class RecipeRepository {
   }
 
   static async findBySkill(skill: string): Promise<GameRecipe[]> {
-    const records = await queryIndex(EntityType.RECIPE, `SKILL#${skill}`);
-    return records.map(RecipeRepository.stripRecipe);
+    const records = await queryIndex(EntityType.RECIPE);
+    return records.filter((r) => (r as Record<string, unknown>).skill === skill).map(RecipeRepository.stripRecipe);
   }
 
   static async findAll(): Promise<GameRecipe[]> {
@@ -45,7 +45,7 @@ export class RecipeRepository {
     return records.map(RecipeRepository.stripRecipe);
   }
 
-  private static stripRecipe({ pk, sk, entityType, entitySk, ...recipe }: Record<string, unknown>): GameRecipe {
+  private static stripRecipe({ pk, sk, entityType, ...recipe }: Record<string, unknown>): GameRecipe {
     return recipe as unknown as GameRecipe;
   }
 

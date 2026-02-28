@@ -19,8 +19,12 @@ export class DatabaseStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
-    // Step 1: GSI removed for key schema change (entitySk → name).
-    // After deploy, re-add with: sortKey: { name: 'name', type: STRING }
+    this.table.addGlobalSecondaryIndex({
+      indexName: 'entityIndex',
+      partitionKey: { name: 'entityType', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'name', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
 
     new cdk.CfnOutput(this, 'TableArn', {
       value: this.table.tableArn,

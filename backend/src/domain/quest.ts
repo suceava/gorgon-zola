@@ -45,12 +45,12 @@ export class QuestRepository {
     return record ? QuestRepository.strip(record) : undefined;
   }
 
-  static async search(prefix?: string): Promise<GameQuest[]> {
-    const records = await queryIndex(EntityType.QUEST, prefix ? prefix.toUpperCase() : undefined);
+  static async search(query?: string): Promise<GameQuest[]> {
+    const records = await queryIndex(EntityType.QUEST, query);
     return records.map(QuestRepository.strip);
   }
 
-  private static strip({ pk, sk, entityType, entitySk, ...quest }: Record<string, unknown>): GameQuest {
+  private static strip({ pk, sk, entityType, ...quest }: Record<string, unknown>): GameQuest {
     return quest as unknown as GameQuest;
   }
 }

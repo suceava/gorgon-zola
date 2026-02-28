@@ -21,7 +21,6 @@ export interface DbRecord {
   pk: string;
   sk: string;
   entityType?: string;
-  entitySk?: string;
   [key: string]: unknown;
 }
 
@@ -56,16 +55,19 @@ export async function query<T extends DbRecord>(pk: string, skPrefix?: string): 
   return (result.Items ?? []) as T[];
 }
 
-export async function queryIndex<T extends DbRecord>(entityType: string, skPrefix?: string): Promise<T[]> {
+export async function queryIndex<T extends DbRecord>(entityType: string, query?: string): Promise<T[]> {
   const result = await ddb.send(
     new QueryCommand({
       TableName: TABLE_NAME,
       IndexName: ENTITY_INDEX,
-      KeyConditionExpression: skPrefix ? 'entityType = :et AND begins_with(entitySk, :skPrefix)' : 'entityType = :et',
-      ExpressionAttributeValues: skPrefix ? { ':et': entityType, ':skPrefix': skPrefix } : { ':et': entityType },
+      KeyConditionExpression: 'entityType = :et',
+      ExpressionAttributeValues: { ':et': entityType },
     }),
   );
-  return (result.Items ?? []) as T[];
+  const items = (result.Items ?? []) as T[];
+  if (!query) return items;
+  const upper = query.toUpperCase();
+  return items.filter((item) => ((item.name as string) ?? '').toUpperCase().includes(upper));
 }
 
 export async function batchPut(items: DbRecord[]): Promise<void> {
