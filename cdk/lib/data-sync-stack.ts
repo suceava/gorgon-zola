@@ -16,7 +16,7 @@ export class DataSyncStack extends cdk.Stack {
     const table = dynamodb.Table.fromTableArn(this, 'Table', cdk.Fn.importValue('GorgonZola-TableArn'));
 
     const syncHandler = new NodejsFunction(this, 'SyncGameDataHandler', {
-      entry: path.join(__dirname, '..', '..', 'backend', 'src', 'services', 'sync-game-data', 'handler.ts'),
+      entry: path.join(__dirname, '..', '..', 'backend', 'src', 'services', 'data-sync', 'handler.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_22_X,
       environment: {

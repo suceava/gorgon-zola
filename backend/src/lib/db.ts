@@ -56,15 +56,21 @@ export async function query<T extends DbRecord>(pk: string, skPrefix?: string): 
 }
 
 export async function queryIndex<T extends DbRecord>(entityType: string, query?: string): Promise<T[]> {
-  const result = await ddb.send(
-    new QueryCommand({
-      TableName: TABLE_NAME,
-      IndexName: ENTITY_INDEX,
-      KeyConditionExpression: 'entityType = :et',
-      ExpressionAttributeValues: { ':et': entityType },
-    }),
-  );
-  const items = (result.Items ?? []) as T[];
+  const items: T[] = [];
+  let lastKey: Record<string, unknown> | undefined;
+  do {
+    const result = await ddb.send(
+      new QueryCommand({
+        TableName: TABLE_NAME,
+        IndexName: ENTITY_INDEX,
+        KeyConditionExpression: 'entityType = :et',
+        ExpressionAttributeValues: { ':et': entityType },
+        ExclusiveStartKey: lastKey,
+      }),
+    );
+    items.push(...((result.Items ?? []) as T[]));
+    lastKey = result.LastEvaluatedKey as Record<string, unknown> | undefined;
+  } while (lastKey);
   if (!query) return items;
   const upper = query.toUpperCase();
   return items.filter((item) => ((item.name as string) ?? '').toUpperCase().includes(upper));
