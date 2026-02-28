@@ -1,4 +1,4 @@
-import { EntityType, get, keys, queryIndex } from '../lib/db.js';
+import { EntityType, get, keys, queryEntityIndexAll } from '../lib/db.js';
 
 export interface NpcItem {
   itemId: string;
@@ -22,7 +22,7 @@ export class NpcRepository {
   }
 
   static async search(query?: string): Promise<GameNpc[]> {
-    const records = await queryIndex(EntityType.NPC, query);
+    const records = await queryEntityIndexAll(EntityType.NPC, query);
     return records.map(NpcRepository.strip);
   }
 

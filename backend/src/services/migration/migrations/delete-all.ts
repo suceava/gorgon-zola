@@ -1,7 +1,7 @@
-import { batchDelete, scan } from '../../../lib/db.js';
+import { batchDelete, scanAll } from '../../../lib/db.js';
 
 export async function run(): Promise<string> {
-  const keys = await scan();
+  const keys = await scanAll();
   console.log(`Found ${keys.length} records to delete`);
 
   await batchDelete(keys);

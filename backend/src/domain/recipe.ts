@@ -1,4 +1,4 @@
-import { EntityType, get, keys, queryIndex } from '../lib/db.js';
+import { EntityType, get, keys, queryEntityIndexAll } from '../lib/db.js';
 
 export interface RecipeIngredient {
   itemId: number;
@@ -36,12 +36,12 @@ export class RecipeRepository {
   }
 
   static async findBySkill(skill: string): Promise<GameRecipe[]> {
-    const records = await queryIndex(EntityType.RECIPE);
+    const records = await queryEntityIndexAll(EntityType.RECIPE);
     return records.filter((r) => (r as Record<string, unknown>).skill === skill).map(RecipeRepository.stripRecipe);
   }
 
   static async findAll(): Promise<GameRecipe[]> {
-    const records = await queryIndex(EntityType.RECIPE);
+    const records = await queryEntityIndexAll(EntityType.RECIPE);
     return records.map(RecipeRepository.stripRecipe);
   }
 

@@ -1,4 +1,4 @@
-import { keys, put, query } from '../lib/db.js';
+import { keys, put, queryAll } from '../lib/db.js';
 
 export interface PlayerPrice {
   itemId: string;
@@ -9,7 +9,7 @@ export interface PlayerPrice {
 
 export class PriceRepository {
   static async getForItem(itemId: string): Promise<PlayerPrice[]> {
-    const records = await query(`ITEM#${itemId}`, 'PRICE#');
+    const records = await queryAll(`ITEM#${itemId}`, 'PRICE#');
     return records.map(PriceRepository.strip);
   }
 

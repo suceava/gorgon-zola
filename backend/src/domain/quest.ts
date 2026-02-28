@@ -1,4 +1,4 @@
-import { EntityType, get, keys, queryIndex } from '../lib/db.js';
+import { EntityType, get, keys, queryEntityIndexAll } from '../lib/db.js';
 
 export interface QuestItem {
   itemId: string;
@@ -46,7 +46,7 @@ export class QuestRepository {
   }
 
   static async search(query?: string): Promise<GameQuest[]> {
-    const records = await queryIndex(EntityType.QUEST, query);
+    const records = await queryEntityIndexAll(EntityType.QUEST, query);
     return records.map(QuestRepository.strip);
   }
 

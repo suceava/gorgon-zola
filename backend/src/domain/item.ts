@@ -1,4 +1,4 @@
-import { EntityType, get, keys, queryIndex } from '../lib/db.js';
+import { EntityType, get, keys, queryEntityIndexAll } from '../lib/db.js';
 
 export interface ItemSource {
   type: string;
@@ -39,7 +39,7 @@ export class ItemRepository {
   }
 
   static async search(query?: string): Promise<GameItem[]> {
-    const records = await queryIndex(EntityType.ITEM, query);
+    const records = await queryEntityIndexAll(EntityType.ITEM, query);
     return records.map(ItemRepository.strip);
   }
 
