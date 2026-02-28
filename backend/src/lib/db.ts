@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { BatchWriteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { BatchWriteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 
 const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME ?? 'GorgonZola';
 const ENTITY_INDEX = 'entityIndex';
@@ -74,6 +74,44 @@ export async function queryIndex<T extends DbRecord>(entityType: string, query?:
   if (!query) return items;
   const upper = query.toUpperCase();
   return items.filter((item) => ((item.name as string) ?? '').toUpperCase().includes(upper));
+}
+
+export async function scan(): Promise<{ pk: string; sk: string }[]> {
+  const keys: { pk: string; sk: string }[] = [];
+  let lastKey: Record<string, unknown> | undefined;
+  do {
+    const result = await ddb.send(
+      new ScanCommand({
+        TableName: TABLE_NAME,
+        ProjectionExpression: 'pk, sk',
+        ExclusiveStartKey: lastKey,
+      }),
+    );
+    for (const item of result.Items ?? []) {
+      keys.push({ pk: item.pk as string, sk: item.sk as string });
+    }
+    lastKey = result.LastEvaluatedKey as Record<string, unknown> | undefined;
+  } while (lastKey);
+  return keys;
+}
+
+export async function batchDelete(keys: { pk: string; sk: string }[]): Promise<void> {
+  for (let i = 0; i < keys.length; i += 25) {
+    const chunk = keys.slice(i, i + 25);
+    const result = await ddb.send(
+      new BatchWriteCommand({
+        RequestItems: {
+          [TABLE_NAME]: chunk.map((key) => ({
+            DeleteRequest: { Key: { pk: key.pk, sk: key.sk } },
+          })),
+        },
+      }),
+    );
+    const unprocessed = result.UnprocessedItems?.[TABLE_NAME];
+    if (unprocessed?.length) {
+      await ddb.send(new BatchWriteCommand({ RequestItems: { [TABLE_NAME]: unprocessed } }));
+    }
+  }
 }
 
 export async function batchPut(items: DbRecord[]): Promise<void> {

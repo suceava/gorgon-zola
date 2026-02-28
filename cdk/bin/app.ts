@@ -7,6 +7,7 @@ import { DatabaseStack } from '../lib/database-stack'
 import { ApiStack } from '../lib/api-stack'
 import { FrontendStack } from '../lib/frontend-stack'
 import { DataSyncStack } from '../lib/data-sync-stack'
+import { MigrationStack } from '../lib/migration-stack'
 
 type StackConfig = {
   StackClass: new (scope: cdk.App, id: string, props?: cdk.StackProps) => cdk.Stack
@@ -26,6 +27,9 @@ const stackConfigs: Record<string, StackConfig[]> = {
   ],
   services: [
     { StackClass: DataSyncStack, id: 'GorgonZola-DataSync', dependencies: ['GorgonZola-Database'] },
+  ],
+  migration: [
+    { StackClass: MigrationStack, id: 'GorgonZola-Migration', dependencies: ['GorgonZola-Database'] },
   ],
 }
 
