@@ -3,6 +3,7 @@ import { Nav } from './components/Nav.tsx';
 import { Admin } from './pages/Admin.tsx';
 import { Crafting } from './pages/Crafting.tsx';
 import { Home } from './pages/Home.tsx';
+import { ItemPage } from './pages/ItemPage.tsx';
 import { Items } from './pages/Items.tsx';
 
 export function App() {
@@ -14,6 +15,7 @@ export function App() {
           <Route path="/" element={<Home />} />
           <Route path="/crafting" element={<Crafting />} />
           <Route path="/items" element={<Items />} />
+          <Route path="/items/:id" element={<ItemPage />} />
           <Route path="/admin" element={<Admin />} />
         </Routes>
       </main>

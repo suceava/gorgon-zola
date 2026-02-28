@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Item } from '../types/items';
 import type { PlayerPrice } from '../types/prices';
-import type { IngredientIndex, Recipe } from '../types/recipes';
+import type { Recipe } from '../types/recipes';
 import { apiGet, apiPost } from './fetch';
 
 export function useItems(search?: string) {
@@ -24,14 +24,6 @@ export function useRecipes(skill?: string) {
   return useQuery({
     queryKey: ['recipes', { skill }],
     queryFn: () => apiGet<Recipe[]>('/recipes', skill ? { skill } : undefined),
-  });
-}
-
-export function useRecipesByIngredient(ingredientItemId: string) {
-  return useQuery({
-    queryKey: ['recipes', 'byIngredient', ingredientItemId],
-    queryFn: () => apiGet<IngredientIndex[]>('/recipes', { ingredientItemId }),
-    enabled: !!ingredientItemId,
   });
 }
 

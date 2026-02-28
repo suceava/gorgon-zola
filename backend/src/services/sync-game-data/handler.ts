@@ -173,7 +173,8 @@ function transformItems(
   recipeIndex: Map<string, ItemRecipe[]>,
 ) {
   return Object.entries(rawItems).map(([key, item]) => {
-    const { pk, sk } = keys.item(key);
+    const id = parseId(key);
+    const { pk, sk } = keys.item(id);
     const sources: ItemSource[] = (rawSources[key]?.entries ?? []).map((entry) => ({
       type: entry.type,
       npc: entry.npc,
@@ -188,7 +189,7 @@ function transformItems(
       pk,
       sk,
       entityType: EntityType.ITEM,
-      id: parseId(key),
+      id,
       name: item.Name,
       value: item.Value ?? 0,
       internalName: item.InternalName,
@@ -207,12 +208,13 @@ function transformItems(
 
 function transformRecipes(rawRecipes: Record<string, RawRecipe>, itemNames: Map<string, string>) {
   return Object.entries(rawRecipes).map(([key, recipe]) => {
-    const { pk, sk } = keys.recipe(key);
+    const id = parseId(key);
+    const { pk, sk } = keys.recipe(id);
     return {
       pk,
       sk,
       entityType: EntityType.RECIPE,
-      id: parseId(key),
+      id,
       name: recipe.Name,
       skill: recipe.Skill,
       skillLevelReq: recipe.SkillLevelReq ?? 0,
@@ -258,12 +260,13 @@ function transformQuests(
   questItems: Map<string, QuestItem[]>,
 ) {
   return Object.entries(rawQuests).map(([key, quest]) => {
-    const { pk, sk } = keys.quest(key);
+    const id = parseId(key);
+    const { pk, sk } = keys.quest(id);
     return {
       pk,
       sk,
       entityType: EntityType.QUEST,
-      id: parseId(key),
+      id,
       name: quest.Name,
       description: quest.Description,
       displayedLocation: quest.DisplayedLocation,

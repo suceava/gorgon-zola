@@ -1,5 +1,6 @@
 export interface RecipeIngredient {
   itemId: number;
+  itemName: string;
   stackSize: number;
   chanceToConsume?: number;
   desc?: string;
@@ -7,6 +8,7 @@ export interface RecipeIngredient {
 
 export interface RecipeResult {
   itemId: number;
+  itemName: string;
   stackSize: number;
   percentChance?: number;
 }
@@ -22,12 +24,4 @@ export interface Recipe {
   skillLevelReq: number;
   ingredients: RecipeIngredient[];
   results: RecipeResult[];
-}
-
-export interface IngredientIndex {
-  recipeId: string;
-  recipeName: string;
-  skill: string;
-  ingredientItemId: number;
-  stackSize: number;
 }
