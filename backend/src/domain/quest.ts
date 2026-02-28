@@ -5,11 +5,36 @@ export interface QuestItem {
   itemName: string;
 }
 
+export interface QuestRequirement {
+  type: string;
+  npc?: string;
+  level?: string | number;
+  skill?: string;
+}
+
+export interface QuestObjective {
+  type: string;
+  description: string;
+  number?: number;
+  target?: string;
+}
+
+export interface QuestReward {
+  type: string;
+  skill?: string;
+  xp?: number;
+}
+
 export interface GameQuest {
   id: string;
   name: string;
   description?: string;
   displayedLocation?: string;
+  favorNpc?: string;
+  requirements: QuestRequirement[];
+  objectives: QuestObjective[];
+  rewardFavor?: number;
+  rewards: QuestReward[];
   items: QuestItem[];
 }
 

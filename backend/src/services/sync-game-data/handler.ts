@@ -60,6 +60,25 @@ interface RawQuest {
   Name: string;
   Description?: string;
   DisplayedLocation?: string;
+  FavorNpc?: string;
+  Requirements?: {
+    T: string;
+    Npc?: string;
+    Level?: string | number;
+    Skill?: string;
+  }[];
+  Objectives?: {
+    Type: string;
+    Description: string;
+    Number?: number;
+    Target?: string;
+  }[];
+  Reward_Favor?: number;
+  Rewards?: {
+    T: string;
+    Skill?: string;
+    Xp?: number;
+  }[];
 }
 
 interface RawSourceEntry {
@@ -187,7 +206,7 @@ function transformItems(
   });
 }
 
-function transformRecipes(rawRecipes: Record<string, RawRecipe>) {
+function transformRecipes(rawRecipes: Record<string, RawRecipe>, itemNames: Map<string, string>) {
   return Object.entries(rawRecipes).map(([key, recipe]) => {
     const { pk, sk } = keys.recipe(key);
     return {
@@ -201,12 +220,14 @@ function transformRecipes(rawRecipes: Record<string, RawRecipe>) {
       skillLevelReq: recipe.SkillLevelReq ?? 0,
       ingredients: (recipe.Ingredients ?? []).map((ing) => ({
         itemId: ing.ItemCode,
+        itemName: itemNames.get(`item_${ing.ItemCode}`) ?? '',
         stackSize: ing.StackSize ?? 1,
         chanceToConsume: ing.ChanceToConsume,
         desc: ing.Desc,
       })),
       results: (recipe.ResultItems ?? []).map((res) => ({
         itemId: res.ItemCode,
+        itemName: itemNames.get(`item_${res.ItemCode}`) ?? '',
         stackSize: res.StackSize ?? 1,
         percentChance: res.PercentChance,
       })),
@@ -250,6 +271,25 @@ function transformQuests(
       name: quest.Name,
       description: quest.Description,
       displayedLocation: quest.DisplayedLocation,
+      favorNpc: quest.FavorNpc,
+      requirements: (quest.Requirements ?? []).map((req) => ({
+        type: req.T,
+        npc: req.Npc,
+        level: req.Level,
+        skill: req.Skill,
+      })),
+      objectives: (quest.Objectives ?? []).map((obj) => ({
+        type: obj.Type,
+        description: obj.Description,
+        number: obj.Number,
+        target: obj.Target,
+      })),
+      rewardFavor: quest.Reward_Favor,
+      rewards: (quest.Rewards ?? []).map((rew) => ({
+        type: rew.T,
+        skill: rew.Skill,
+        xp: rew.Xp,
+      })),
       items: questItems.get(key) ?? [],
     };
   });
@@ -273,7 +313,7 @@ export const handler: ScheduledHandler = async () => {
   const itemRecords = transformItems(itemsRaw, sourcesRaw, recipeIndex);
   console.log(`Transformed ${itemRecords.length} items`);
 
-  const recipeRecords = transformRecipes(recipesRaw);
+  const recipeRecords = transformRecipes(recipesRaw, itemNames);
   console.log(`Transformed ${recipeRecords.length} recipes`);
 
   const npcRecords = transformNpcs(npcsRaw, npcItems);

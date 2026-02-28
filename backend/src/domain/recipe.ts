@@ -2,6 +2,7 @@ import { EntityType, get, keys, queryIndex } from '../lib/db.js';
 
 export interface RecipeIngredient {
   itemId: number;
+  itemName: string;
   stackSize: number;
   chanceToConsume?: number;
   desc?: string;
@@ -9,6 +10,7 @@ export interface RecipeIngredient {
 
 export interface RecipeResult {
   itemId: number;
+  itemName: string;
   stackSize: number;
   percentChance?: number;
 }

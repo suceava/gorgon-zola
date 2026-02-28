@@ -1,7 +1,7 @@
 # Gorgon Zola
 
-Crafting profitability tool for the game Project: Gorgon. Helps players identify
-the most profitable items to craft given their available materials.
+Data exploration tool for the game Project: Gorgon. Browse items, recipes, NPCs,
+quests, and their relationships. Includes crafting profitability analysis.
 
 ## Game Data Source
 
