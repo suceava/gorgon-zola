@@ -268,20 +268,20 @@ function transformQuests(
       description: quest.Description,
       displayedLocation: quest.DisplayedLocation,
       favorNpc: quest.FavorNpc,
-      requirements: (quest.Requirements ?? []).map((req) => ({
+      requirements: (Array.isArray(quest.Requirements) ? quest.Requirements : []).map((req) => ({
         type: req.T,
         npc: req.Npc,
         level: req.Level,
         skill: req.Skill,
       })),
-      objectives: (quest.Objectives ?? []).map((obj) => ({
+      objectives: (Array.isArray(quest.Objectives) ? quest.Objectives : []).map((obj) => ({
         type: obj.Type,
         description: obj.Description,
         number: obj.Number,
         target: obj.Target,
       })),
       rewardFavor: quest.Reward_Favor,
-      rewards: (quest.Rewards ?? []).map((rew) => ({
+      rewards: (Array.isArray(quest.Rewards) ? quest.Rewards : []).map((rew) => ({
         type: rew.T,
         skill: rew.Skill,
         xp: rew.Xp,
