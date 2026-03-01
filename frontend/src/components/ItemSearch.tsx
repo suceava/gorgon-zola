@@ -1,33 +1,50 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useItems } from '../api/hooks';
-import { ItemDetail } from './ItemDetail';
+import { ItemPreview } from './ItemPreview';
 
 export function ItemSearch() {
-  const [query, setQuery] = useState('');
-  const [debounced, setDebounced] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initial = searchParams.get('q') ?? '';
+  const [query, setQuery] = useState(initial);
+  const [submitted, setSubmitted] = useState(initial);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(query), 300);
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  const search = debounced.length >= 2 ? debounced : undefined;
+  const search = submitted.length >= 2 ? submitted : undefined;
   const { data: items, isLoading, error } = useItems(search);
+
+  function handleSubmit() {
+    setSubmitted(query);
+    if (query) {
+      setSearchParams({ q: query }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+  }
 
   return (
     <div className="space-y-4">
-      <input
-        type="text"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search items by name..."
-        className="w-full max-w-md px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:border-amber-500"
-      />
-
-      {debounced.length > 0 && debounced.length < 2 && (
-        <p className="text-gray-500 text-sm">Type at least 2 characters to search.</p>
-      )}
+      <form
+        className="flex gap-2 max-w-md"
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSubmit();
+        }}
+      >
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search items by name..."
+          className="flex-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100 focus:outline-none focus:border-amber-500"
+        />
+        <button
+          type="submit"
+          className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-md font-medium transition-colors"
+        >
+          Search
+        </button>
+      </form>
 
       {isLoading && <p className="text-gray-400">Searching...</p>}
 
@@ -55,7 +72,7 @@ export function ItemSearch() {
                   </div>
                   <span className="text-gray-400 text-sm">{item.value.toLocaleString()} councils</span>
                 </button>
-                {expanded && <ItemDetail item={item} />}
+                {expanded && <ItemPreview item={item} />}
               </div>
             );
           })}
