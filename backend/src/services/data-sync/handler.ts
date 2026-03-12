@@ -108,9 +108,11 @@ function buildItemNames(rawItems: Record<string, RawItem>): Map<string, string> 
 }
 
 /** Build reverse recipe index: itemKey → recipes that consume it */
-function buildRecipeIndex(rawRecipes: Record<string, RawRecipe>): Map<string, ItemRecipe[]> {
+function buildRecipeIndex(rawRecipes: Record<string, RawRecipe>, rawItems: Record<string, RawItem>): Map<string, ItemRecipe[]> {
   const index = new Map<string, ItemRecipe[]>();
   for (const [key, recipe] of Object.entries(rawRecipes)) {
+    const primaryResult = recipe.ResultItems?.[0];
+    const resultItemValue = primaryResult ? rawItems[`item_${primaryResult.ItemCode}`]?.Value : undefined;
     for (const ing of recipe.Ingredients ?? []) {
       if (ing.ItemCode) {
         const itemKey = `item_${ing.ItemCode}`;
@@ -123,6 +125,7 @@ function buildRecipeIndex(rawRecipes: Record<string, RawRecipe>): Map<string, It
           recipeId: parseId(key),
           recipeName: recipe.Name,
           skill: recipe.Skill,
+          resultItemValue,
         });
       }
     }
@@ -306,7 +309,7 @@ export const handler: ScheduledHandler = async () => {
   ]);
 
   const itemNames = buildItemNames(itemsRaw);
-  const recipeIndex = buildRecipeIndex(recipesRaw);
+  const recipeIndex = buildRecipeIndex(recipesRaw, itemsRaw);
   const { npcItems, questItems } = buildSourceMaps(sourcesRaw, itemNames);
 
   const itemRecords = transformItems(itemsRaw, sourcesRaw, recipeIndex);

@@ -11,6 +11,7 @@ export interface ItemRecipe {
   recipeId: string;
   recipeName: string;
   skill: string;
+  resultItemValue?: number;
 }
 
 export interface Item {

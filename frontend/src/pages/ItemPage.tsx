@@ -68,14 +68,30 @@ export function ItemPage() {
       {item.recipes && item.recipes.length > 0 && (
         <div className="bg-gray-800 rounded-lg p-4 space-y-3">
           <h2 className="text-lg font-semibold">Used in Recipes</h2>
-          <ul className="space-y-2 text-sm">
-            {item.recipes.map((recipe) => (
-              <li key={recipe.recipeId} className="text-gray-300">
-                <span className="text-gray-100">{recipe.recipeName}</span>
-                <span className="text-gray-500 ml-2">({recipe.skill})</span>
-              </li>
-            ))}
-          </ul>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-gray-400 border-b border-gray-700">
+                <th className="pb-2 font-medium">Recipe</th>
+                <th className="pb-2 font-medium">Skill</th>
+                <th className="pb-2 font-medium text-right">Result Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...item.recipes]
+                .sort((a, b) => (b.resultItemValue ?? 0) - (a.resultItemValue ?? 0))
+                .map((recipe) => (
+                  <tr key={recipe.recipeId} className="border-b border-gray-700/50">
+                    <td className="py-1.5 text-gray-100">{recipe.recipeName}</td>
+                    <td className="py-1.5 text-gray-400">{recipe.skill}</td>
+                    <td className="py-1.5 text-right text-gray-300">
+                      {recipe.resultItemValue != null
+                        ? recipe.resultItemValue.toLocaleString()
+                        : '—'}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
