@@ -14,6 +14,7 @@ export interface ItemRecipe {
   recipeName: string;
   skill: string;
   resultItemValue?: number;
+  matchedKeyword?: string;
 }
 
 export interface GameItem {

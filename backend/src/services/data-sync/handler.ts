@@ -36,7 +36,8 @@ interface RawRecipe {
   Skill: string;
   SkillLevelReq: number;
   Ingredients: {
-    ItemCode: number;
+    ItemCode?: number;
+    ItemKeys?: string[];
     StackSize: number;
     ChanceToConsume?: number;
     Desc?: string;
@@ -107,26 +108,62 @@ function buildItemNames(rawItems: Record<string, RawItem>): Map<string, string> 
   return names;
 }
 
+/** Build keyword → item keys lookup for matching generic ingredients */
+function buildKeywordIndex(rawItems: Record<string, RawItem>): Map<string, string[]> {
+  const index = new Map<string, string[]>();
+  for (const [key, item] of Object.entries(rawItems)) {
+    for (const kw of item.Keywords ?? []) {
+      const bare = kw.split('=')[0];
+      let items = index.get(bare);
+      if (!items) {
+        items = [];
+        index.set(bare, items);
+      }
+      items.push(key);
+    }
+  }
+  return index;
+}
+
 /** Build reverse recipe index: itemKey → recipes that consume it */
 function buildRecipeIndex(rawRecipes: Record<string, RawRecipe>, rawItems: Record<string, RawItem>): Map<string, ItemRecipe[]> {
+  const keywordIndex = buildKeywordIndex(rawItems);
   const index = new Map<string, ItemRecipe[]>();
+
+  function addToIndex(itemKey: string, entry: ItemRecipe) {
+    let refs = index.get(itemKey);
+    if (!refs) {
+      refs = [];
+      index.set(itemKey, refs);
+    }
+    refs.push(entry);
+  }
+
   for (const [key, recipe] of Object.entries(rawRecipes)) {
     const primaryResult = recipe.ResultItems?.[0];
     const resultItemValue = primaryResult ? rawItems[`item_${primaryResult.ItemCode}`]?.Value : undefined;
     for (const ing of recipe.Ingredients ?? []) {
       if (ing.ItemCode) {
-        const itemKey = `item_${ing.ItemCode}`;
-        let refs = index.get(itemKey);
-        if (!refs) {
-          refs = [];
-          index.set(itemKey, refs);
-        }
-        refs.push({
+        addToIndex(`item_${ing.ItemCode}`, {
           recipeId: parseId(key),
           recipeName: recipe.Name,
           skill: recipe.Skill,
           resultItemValue,
         });
+      }
+      if (ing.ItemKeys) {
+        for (const keyword of ing.ItemKeys) {
+          const matchingItems = keywordIndex.get(keyword) ?? [];
+          for (const itemKey of matchingItems) {
+            addToIndex(itemKey, {
+              recipeId: parseId(key),
+              recipeName: recipe.Name,
+              skill: recipe.Skill,
+              resultItemValue,
+              matchedKeyword: keyword,
+            });
+          }
+        }
       }
     }
   }
@@ -221,13 +258,22 @@ function transformRecipes(rawRecipes: Record<string, RawRecipe>, itemNames: Map<
       name: recipe.Name,
       skill: recipe.Skill,
       skillLevelReq: recipe.SkillLevelReq ?? 0,
-      ingredients: (recipe.Ingredients ?? []).map((ing) => ({
-        itemId: ing.ItemCode,
-        itemName: itemNames.get(`item_${ing.ItemCode}`) ?? '',
-        stackSize: ing.StackSize ?? 1,
-        chanceToConsume: ing.ChanceToConsume,
-        desc: ing.Desc,
-      })),
+      ingredients: (recipe.Ingredients ?? [])
+        .filter((ing) => ing.ItemCode)
+        .map((ing) => ({
+          itemId: ing.ItemCode!,
+          itemName: itemNames.get(`item_${ing.ItemCode}`) ?? '',
+          stackSize: ing.StackSize ?? 1,
+          chanceToConsume: ing.ChanceToConsume,
+          desc: ing.Desc,
+        })),
+      genericIngredients: (recipe.Ingredients ?? [])
+        .filter((ing) => ing.ItemKeys)
+        .map((ing) => ({
+          itemKeys: ing.ItemKeys!,
+          desc: ing.Desc ?? '',
+          stackSize: ing.StackSize ?? 1,
+        })),
       results: (recipe.ResultItems ?? []).map((res) => ({
         itemId: res.ItemCode,
         itemName: itemNames.get(`item_${res.ItemCode}`) ?? '',

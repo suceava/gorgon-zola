@@ -6,6 +6,12 @@ export interface RecipeIngredient {
   desc?: string;
 }
 
+export interface RecipeGenericIngredient {
+  itemKeys: string[];
+  desc: string;
+  stackSize: number;
+}
+
 export interface RecipeResult {
   itemId: number;
   itemName: string;
@@ -23,5 +29,6 @@ export interface Recipe {
   skill: string;
   skillLevelReq: number;
   ingredients: RecipeIngredient[];
+  genericIngredients: RecipeGenericIngredient[];
   results: RecipeResult[];
 }
