@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useItem } from '../api/hooks';
 import type { ItemSource } from '../types/items';
 
@@ -81,7 +81,16 @@ export function ItemPage() {
                 .sort((a, b) => (b.resultItemValue ?? 0) - (a.resultItemValue ?? 0))
                 .map((recipe) => (
                   <tr key={recipe.recipeId} className="border-b border-gray-700/50">
-                    <td className="py-1.5 text-gray-100">{recipe.recipeName}</td>
+                    <td className="py-1.5">
+                      <Link to={`/recipes/${recipe.recipeId}`} className="text-blue-400 hover:text-blue-300">
+                        {recipe.recipeName}
+                      </Link>
+                      {recipe.matchedKeyword && (
+                        <span className="ml-2 text-xs px-1.5 py-0.5 bg-purple-900/50 text-purple-300 rounded">
+                          {recipe.matchedKeyword}
+                        </span>
+                      )}
+                    </td>
                     <td className="py-1.5 text-gray-400">{recipe.skill}</td>
                     <td className="py-1.5 text-right text-gray-300">
                       {recipe.resultItemValue != null

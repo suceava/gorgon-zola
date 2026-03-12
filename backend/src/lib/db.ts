@@ -85,11 +85,14 @@ async function batchWrite(requests: WriteRequest[]): Promise<void> {
     const chunk = requests.slice(i, i + BATCH_SIZE);
     let unprocessed: WriteRequest[] | undefined = chunk;
     for (let attempt = 0; unprocessed?.length && attempt < MAX_RETRIES; attempt++) {
-      if (attempt > 0) await new Promise((r) => setTimeout(r, 50 * 2 ** attempt));
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 100 * 2 ** attempt));
       const result = await ddb.send(
         new BatchWriteCommand({ RequestItems: { [TABLE_NAME]: unprocessed } }),
       );
       unprocessed = result.UnprocessedItems?.[TABLE_NAME] as WriteRequest[] | undefined;
+    }
+    if (i + BATCH_SIZE < requests.length) {
+      await new Promise((r) => setTimeout(r, 50));
     }
   }
 }

@@ -20,6 +20,14 @@ export function useItem(id: string) {
   });
 }
 
+export function useRecipe(id: string) {
+  return useQuery({
+    queryKey: ['recipe', id],
+    queryFn: () => apiGet<Recipe>('/recipes', { id }),
+    enabled: !!id,
+  });
+}
+
 export function useRecipes(skill?: string) {
   return useQuery({
     queryKey: ['recipes', { skill }],
