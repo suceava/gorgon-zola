@@ -32,7 +32,7 @@ export function RecipePage() {
                   {ing.itemName}
                 </Link>
                 <span className="text-gray-500 text-xs">
-                  ({(ing.value * ing.stackSize).toLocaleString()}g)
+                  ({ing.stackSize > 1 ? `${ing.value.toLocaleString()}c x ${ing.stackSize} = ${(ing.value * ing.stackSize).toLocaleString()}c` : `${ing.value.toLocaleString()}c`})
                 </span>
                 {ing.chanceToConsume != null && ing.chanceToConsume < 1 && (
                   <span className="text-xs text-gray-500">
@@ -66,7 +66,7 @@ export function RecipePage() {
                   {res.itemName}
                 </Link>
                 <span className="text-gray-500 text-xs">
-                  ({(res.value * res.stackSize).toLocaleString()}g)
+                  ({res.stackSize > 1 ? `${res.value.toLocaleString()}c x ${res.stackSize} = ${(res.value * res.stackSize).toLocaleString()}c` : `${res.value.toLocaleString()}c`})
                 </span>
                 {res.percentChance != null && res.percentChance < 1 && (
                   <span className="text-xs text-gray-500">

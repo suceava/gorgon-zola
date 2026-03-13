@@ -6,7 +6,7 @@ quests, and their relationships. Includes crafting profitability analysis.
 ## Game Data Source
 
 JSON files from https://cdn.projectgorgon.com/v456/data/index.html
-Key files: items.json, recipes.json, itemuses.json, skills.json
+Key files: items.json, recipes.json, npcs.json, quests.json, sources_items.json
 
 ## Architecture
 
@@ -34,11 +34,12 @@ DynamoDB                               (single table)
 - `frontend/` - Vite React SPA. Not a workspace. Built by CDK during synthesis.
   - `src/api/fetch.ts` - Raw fetch wrapper (`apiGet`, `apiPost`). No framework dependency.
   - `src/api/hooks.ts` - TanStack Query hooks wrapping fetch. Components import hooks, not fetch directly. If swapping TanStack Query, only this file changes.
+  - `src/types/` - Frontend-owned API response types (`items.ts`, `recipes.ts`, `prices.ts`). Clean boundary — no shared imports from backend.
 - `backend/` - All backend code (workspace). Uses **repository pattern** for data access.
   - `src/api/` - Thin Lambda handlers. One file per HTTP method+resource (e.g. `get-items.ts`, `post-price.ts`). Handlers only parse requests, call repository methods, and return JSON. No DynamoDB details, no PK/SK strings, no business logic.
-  - `src/services/` - Background Lambda handlers (e.g. sync-game-data).
-  - `src/domain/` - Domain types + repository classes. One file per entity (`item.ts`, `recipe.ts`, `price.ts`). Each file exports the type interfaces and a static repository class (e.g. `ItemRepository`, `RecipeRepository`, `PriceRepository`). Repository methods return clean domain types — DB fields (`pk`, `sk`, `entityType`) are stripped via private `strip` methods. NOT one folder per entity — flat files, named after the entity.
-  - `src/lib/` - Generic utilities only. `db.ts` is a single file with the DynamoDB client, table config, and typed generic operations (`get`, `put`, `queryAll`, `queryPage`, `queryEntityIndexAll`, `queryEntityIndexPage`, `scanAll`, `scanPage`, `batchPut`, `batchDelete`). No domain knowledge in lib.
+  - `src/services/` - Background Lambda handlers (data-sync, migration).
+  - `src/domain/` - Domain types + repository classes. One file per entity (`item.ts`, `recipe.ts`, `price.ts`, `npc.ts`, `quest.ts`). Each file exports the type interfaces and a static repository class (e.g. `ItemRepository`, `RecipeRepository`, `PriceRepository`, `NpcRepository`, `QuestRepository`). Repository methods return clean domain types — DB fields (`pk`, `sk`, `entityType`) are stripped via private `strip` methods. NOT one folder per entity — flat files, named after the entity.
+  - `src/lib/` - Generic utilities only. `db.ts` is a single file with the DynamoDB client, table config, `EntityType` constants, `keys` helpers for building PK/SK pairs, and typed generic operations (`get`, `put`, `queryAll`, `queryPage`, `queryEntityIndexAll`, `queryEntityIndexPage`, `scanAll`, `scanPage`, `batchPut`, `batchDelete`). No domain knowledge in lib.
 
 ## Code Conventions
 
@@ -48,6 +49,7 @@ DynamoDB                               (single table)
 - **No unnecessary abstractions** — don't create folders, wrapper types, or helper functions for things that are used once.
 - **No index signatures** on domain types. Only include fields that matter for the app.
 - **Consistent naming** — if it's an item reference, call it `itemId` everywhere, not `itemCode` in one place and `id` in another.
+- **nameLower field** — all searchable entities (items, recipes, NPCs, quests) have a `nameLower` field set during sync for case-insensitive search via `contains()` filter on the entity index GSI.
 
 ## Deployment
 
@@ -58,6 +60,7 @@ npm run deploy                # Deploy everything
 npm run deploy:frontend       # Frontend only
 npm run deploy:backend        # API handlers only
 npm run deploy:services       # Background services only
+npm run deploy:migration      # Migration only
 ```
 
 Selective deployment via DEPLOY_SERVICE env var.
@@ -253,7 +256,7 @@ Table: `GorgonZola`
 | Entity       | PK               | SK                 | Embedded lists               |
 |--------------|------------------|--------------------|------------------------------|
 | Item         | ITEM#<id>        | METADATA           | sources[], recipes[]         |
-| Recipe       | RECIPE#<id>      | METADATA           | ingredients[], results[]     |
+| Recipe       | RECIPE#<id>      | METADATA           | ingredients[], genericIngredients[], results[] |
 | NPC          | NPC#<npcId>      | METADATA           | items[]                      |
 | Quest        | QUEST#<questId>  | METADATA           | items[]                      |
 | Vendor Price | ITEM#<id>        | PRICE#<timestamp>  |                              |
@@ -278,9 +281,11 @@ entityIndex (GSI): PK=entityType (ITEM/RECIPE/NPC/QUEST), SK=name
 - Frontend defines its own API response types — clean boundary, no shared imports
 - Game data synced via scheduled Lambda, not manual scripts
 - Modeled after savvy-trader-admin monorepo pattern
-- Repository pattern — static classes (`ItemRepository`, `RecipeRepository`, `PriceRepository`) own all data access, return clean domain types with DB fields stripped
+- Repository pattern — static classes (`ItemRepository`, `RecipeRepository`, `PriceRepository`, `NpcRepository`, `QuestRepository`) own all data access, return clean domain types with DB fields stripped
 - Handlers never touch DynamoDB directly — they call repository methods
 - One handler per HTTP method+resource — no multi-method handlers
 - lib/ is generic only — no domain knowledge leaks into utilities
 - API routes have no `/api` prefix — the API lives on its own subdomain (`gorgon-api.gnarlybits.com`)
 - CDK helpers own Lambda permissions — `createApiLambdas` accepts `initialPolicy`, creates a shared IAM role. Stacks never call `grantReadWriteData` on returned lambdas.
+- Recipe data is enriched during sync — ingredients and results include resolved `itemName` and `value` fields (looked up from items) for profitability analysis without extra queries.
+- Recipes support two ingredient types: specific (`ingredients[]` with `itemId`) and generic (`genericIngredients[]` matched by keyword, e.g. "any Vegetable"). Generic ingredients list matching `itemKeys` resolved during sync.
