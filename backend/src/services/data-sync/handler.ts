@@ -140,15 +140,13 @@ function buildRecipeIndex(rawRecipes: Record<string, RawRecipe>, rawItems: Recor
   }
 
   for (const [key, recipe] of Object.entries(rawRecipes)) {
-    const primaryResult = recipe.ResultItems?.[0];
-    const resultItemValue = primaryResult ? rawItems[`item_${primaryResult.ItemCode}`]?.Value : undefined;
     for (const ing of recipe.Ingredients ?? []) {
       if (ing.ItemCode) {
         addToIndex(`item_${ing.ItemCode}`, {
           recipeId: parseId(key),
           recipeName: recipe.Name,
           skill: recipe.Skill,
-          resultItemValue,
+          skillLevelReq: recipe.SkillLevelReq ?? 0,
         });
       }
       if (ing.ItemKeys) {
@@ -159,7 +157,7 @@ function buildRecipeIndex(rawRecipes: Record<string, RawRecipe>, rawItems: Recor
               recipeId: parseId(key),
               recipeName: recipe.Name,
               skill: recipe.Skill,
-              resultItemValue,
+              skillLevelReq: recipe.SkillLevelReq ?? 0,
               matchedKeyword: keyword,
             });
           }
@@ -211,12 +209,18 @@ function transformItems(
   rawItems: Record<string, RawItem>,
   rawSources: Record<string, RawSourceItem>,
   recipeIndex: Map<string, ItemRecipe[]>,
+  rawRecipes: Record<string, RawRecipe>,
+  rawQuests: Record<string, RawQuest>,
 ) {
   return Object.entries(rawItems).map(([key, item]) => {
     const id = parseId(key);
     const { pk, sk } = keys.item(id);
     const sources: ItemSource[] = (rawSources[key]?.entries ?? []).map((entry) => ({
       type: entry.type,
+      name: entry.recipeId != null ? rawRecipes[`recipe_${entry.recipeId}`]?.Name
+        : entry.questId != null ? rawQuests[`quest_${entry.questId}`]?.Name
+        : entry.itemTypeId != null ? rawItems[`item_${entry.itemTypeId}`]?.Name
+        : undefined,
       npc: entry.npc,
       recipeId: entry.recipeId,
       questId: entry.questId,
@@ -246,7 +250,7 @@ function transformItems(
   });
 }
 
-function transformRecipes(rawRecipes: Record<string, RawRecipe>, itemNames: Map<string, string>) {
+function transformRecipes(rawRecipes: Record<string, RawRecipe>, itemNames: Map<string, string>, rawItems: Record<string, RawItem>) {
   return Object.entries(rawRecipes).map(([key, recipe]) => {
     const id = parseId(key);
     const { pk, sk } = keys.recipe(id);
@@ -263,6 +267,7 @@ function transformRecipes(rawRecipes: Record<string, RawRecipe>, itemNames: Map<
         .map((ing) => ({
           itemId: ing.ItemCode!,
           itemName: itemNames.get(`item_${ing.ItemCode}`) ?? '',
+          value: rawItems[`item_${ing.ItemCode}`]?.Value ?? 0,
           stackSize: ing.StackSize ?? 1,
           chanceToConsume: ing.ChanceToConsume,
           desc: ing.Desc,
@@ -277,6 +282,7 @@ function transformRecipes(rawRecipes: Record<string, RawRecipe>, itemNames: Map<
       results: (recipe.ResultItems ?? []).map((res) => ({
         itemId: res.ItemCode,
         itemName: itemNames.get(`item_${res.ItemCode}`) ?? '',
+        value: rawItems[`item_${res.ItemCode}`]?.Value ?? 0,
         stackSize: res.StackSize ?? 1,
         percentChance: res.PercentChance,
       })),
@@ -358,10 +364,10 @@ export const handler: ScheduledHandler = async () => {
   const recipeIndex = buildRecipeIndex(recipesRaw, itemsRaw);
   const { npcItems, questItems } = buildSourceMaps(sourcesRaw, itemNames);
 
-  const itemRecords = transformItems(itemsRaw, sourcesRaw, recipeIndex);
+  const itemRecords = transformItems(itemsRaw, sourcesRaw, recipeIndex, recipesRaw, questsRaw);
   console.log(`Transformed ${itemRecords.length} items`);
 
-  const recipeRecords = transformRecipes(recipesRaw, itemNames);
+  const recipeRecords = transformRecipes(recipesRaw, itemNames, itemsRaw);
   console.log(`Transformed ${recipeRecords.length} recipes`);
 
   const npcRecords = transformNpcs(npcsRaw, npcItems);

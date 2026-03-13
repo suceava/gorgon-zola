@@ -2,6 +2,7 @@ import { EntityType, get, keys, queryEntityIndexAll } from '../lib/db.js';
 
 export interface ItemSource {
   type: string;
+  name?: string;
   npc?: string;
   recipeId?: number;
   questId?: number;
@@ -13,7 +14,7 @@ export interface ItemRecipe {
   recipeId: string;
   recipeName: string;
   skill: string;
-  resultItemValue?: number;
+  skillLevelReq: number;
   matchedKeyword?: string;
 }
 

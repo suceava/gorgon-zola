@@ -57,7 +57,7 @@ export function ItemPage() {
                 <span className="text-xs px-1.5 py-0.5 bg-amber-900/50 text-amber-400 rounded">
                   {source.type}
                 </span>
-                <span className="text-gray-300">{formatSource(source)}</span>
+                <SourceLabel source={source} />
               </li>
             ))}
           </ul>
@@ -73,12 +73,12 @@ export function ItemPage() {
               <tr className="text-left text-gray-400 border-b border-gray-700">
                 <th className="pb-2 font-medium">Recipe</th>
                 <th className="pb-2 font-medium">Skill</th>
-                <th className="pb-2 font-medium text-right">Result Value</th>
+                <th className="pb-2 font-medium text-right">Level</th>
               </tr>
             </thead>
             <tbody>
               {[...item.recipes]
-                .sort((a, b) => (b.resultItemValue ?? 0) - (a.resultItemValue ?? 0))
+                .sort((a, b) => a.recipeName.localeCompare(b.recipeName))
                 .map((recipe) => (
                   <tr key={recipe.recipeId} className="border-b border-gray-700/50">
                     <td className="py-1.5">
@@ -92,11 +92,7 @@ export function ItemPage() {
                       )}
                     </td>
                     <td className="py-1.5 text-gray-400">{recipe.skill}</td>
-                    <td className="py-1.5 text-right text-gray-300">
-                      {recipe.resultItemValue != null
-                        ? recipe.resultItemValue.toLocaleString()
-                        : '—'}
-                    </td>
+                    <td className="py-1.5 text-right text-gray-300">{recipe.skillLevelReq}</td>
                   </tr>
                 ))}
             </tbody>
@@ -107,22 +103,30 @@ export function ItemPage() {
   );
 }
 
-function formatSource(source: ItemSource): string {
+function SourceLabel({ source }: { source: ItemSource }) {
   switch (source.type) {
     case 'Vendor':
     case 'Barter':
-      return source.npc ?? '';
+      return <span className="text-gray-300">{source.npc ?? ''}</span>;
     case 'Recipe':
-      return source.recipeId != null ? `Recipe #${source.recipeId}` : '';
+      return source.recipeId != null ? (
+        <Link to={`/recipes/${source.recipeId}`} className="text-blue-400 hover:text-blue-300">
+          {source.name ?? `Recipe #${source.recipeId}`}
+        </Link>
+      ) : null;
     case 'Quest':
-      return source.questId != null ? `Quest #${source.questId}` : '';
+      return <span className="text-gray-300">{source.name ?? `Quest #${source.questId}`}</span>;
     case 'HangOut':
-      return source.npc ? `${source.npc} hangout` : '';
+      return <span className="text-gray-300">{source.npc ? `${source.npc} hangout` : ''}</span>;
     case 'Item':
-      return source.itemTypeId != null ? `Item #${source.itemTypeId}` : '';
+      return source.itemTypeId != null ? (
+        <Link to={`/items/${source.itemTypeId}`} className="text-blue-400 hover:text-blue-300">
+          {source.name ?? `Item #${source.itemTypeId}`}
+        </Link>
+      ) : null;
     case 'Effect':
-      return 'Ability effect';
+      return <span className="text-gray-300">Ability effect</span>;
     default:
-      return '';
+      return null;
   }
 }

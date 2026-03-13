@@ -1,6 +1,7 @@
 export interface RecipeIngredient {
   itemId: number;
   itemName: string;
+  value: number;
   stackSize: number;
   chanceToConsume?: number;
   desc?: string;
@@ -15,6 +16,7 @@ export interface RecipeGenericIngredient {
 export interface RecipeResult {
   itemId: number;
   itemName: string;
+  value: number;
   stackSize: number;
   percentChance?: number;
 }

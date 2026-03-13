@@ -31,9 +31,12 @@ export function RecipePage() {
                 <Link to={`/items/${ing.itemId}`} className="text-blue-400 hover:text-blue-300">
                   {ing.itemName}
                 </Link>
+                <span className="text-gray-500 text-xs">
+                  ({(ing.value * ing.stackSize).toLocaleString()}g)
+                </span>
                 {ing.chanceToConsume != null && ing.chanceToConsume < 1 && (
                   <span className="text-xs text-gray-500">
-                    ({Math.round(ing.chanceToConsume * 100)}% consumed)
+                    {Math.round(ing.chanceToConsume * 100)}% consumed
                   </span>
                 )}
               </li>
@@ -62,9 +65,12 @@ export function RecipePage() {
                 <Link to={`/items/${res.itemId}`} className="text-blue-400 hover:text-blue-300">
                   {res.itemName}
                 </Link>
+                <span className="text-gray-500 text-xs">
+                  ({(res.value * res.stackSize).toLocaleString()}g)
+                </span>
                 {res.percentChance != null && res.percentChance < 1 && (
                   <span className="text-xs text-gray-500">
-                    ({Math.round(res.percentChance * 100)}% chance)
+                    {Math.round(res.percentChance * 100)}% chance
                   </span>
                 )}
               </li>
