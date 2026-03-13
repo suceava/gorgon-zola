@@ -145,13 +145,23 @@ export async function queryPage<T extends DbRecord>(
 
 function buildEntityIndexCommand(
   entityType: string,
+  query?: string,
   startKey?: Record<string, NativeAttributeValue>,
 ): QueryCommand {
+  const expressionValues: Record<string, NativeAttributeValue> = { ':et': entityType };
+  let filterExpression: string | undefined;
+
+  if (query) {
+    filterExpression = 'contains(nameLower, :q)';
+    expressionValues[':q'] = query.toLowerCase();
+  }
+
   return new QueryCommand({
     TableName: TABLE_NAME,
     IndexName: ENTITY_INDEX,
     KeyConditionExpression: 'entityType = :et',
-    ExpressionAttributeValues: { ':et': entityType },
+    FilterExpression: filterExpression,
+    ExpressionAttributeValues: expressionValues,
     ExclusiveStartKey: startKey,
   });
 }
@@ -160,17 +170,14 @@ export async function queryEntityIndexAll<T extends DbRecord>(
   entityType: string,
   query?: string,
 ): Promise<T[]> {
-  const items = await paginate<T>((startKey) => buildEntityIndexCommand(entityType, startKey));
-  if (!query) return items;
-  const upper = query.toUpperCase();
-  return items.filter((item) => ((item.name as string) ?? '').toUpperCase().includes(upper));
+  return paginate<T>((startKey) => buildEntityIndexCommand(entityType, query, startKey));
 }
 
 export async function queryEntityIndexPage<T extends DbRecord>(
   entityType: string,
   startKey?: Record<string, NativeAttributeValue>,
 ): Promise<PageResult<T>> {
-  return sendPage<T>(buildEntityIndexCommand(entityType, startKey));
+  return sendPage<T>(buildEntityIndexCommand(entityType, undefined, startKey));
 }
 
 // ---------------------------------------------------------------------------

@@ -37,7 +37,7 @@ export function createApiLambdas(
   routes: Record<string, RouteConfig>,
   options: CreateApiLambdasOptions,
 ): NodejsFunction[] {
-  const { api, environment, initialPolicy = [], timeout = cdk.Duration.seconds(10), memorySize = 512 } = options;
+  const { api, environment, initialPolicy = [], timeout = cdk.Duration.seconds(30), memorySize = 512 } = options;
 
   const role = new iam.Role(scope, 'ApiLambdaRole', {
     assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
