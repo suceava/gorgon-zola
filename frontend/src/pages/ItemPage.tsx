@@ -67,7 +67,15 @@ export function ItemPage() {
       {/* Recipes this item is used in */}
       {item.recipes && item.recipes.length > 0 && (
         <div className="bg-gray-800 rounded-lg p-4 space-y-3">
-          <h2 className="text-lg font-semibold">Used in Recipes</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Used in Recipes</h2>
+            <Link
+              to={`/items/${item.id}/profit`}
+              className="text-sm text-amber-400 hover:text-amber-300"
+            >
+              View Profitability
+            </Link>
+          </div>
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-gray-400 border-b border-gray-700">

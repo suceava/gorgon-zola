@@ -1,13 +1,35 @@
+import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useRecipe } from '../api/hooks';
+import type { StoredInventory } from '../types/character';
+import type { Recipe } from '../types/recipes';
+
+const INV_KEY = 'gorgon-zola-game-inventory';
+
+function loadInventory(): StoredInventory | null {
+  const raw = localStorage.getItem(INV_KEY);
+  return raw ? JSON.parse(raw) : null;
+}
 
 export function RecipePage() {
   const { id } = useParams<{ id: string }>();
   const { data: recipe, isLoading, error } = useRecipe(id!);
 
+  const inventory = useMemo(() => loadInventory(), []);
+  const inventoryMap = useMemo(() => {
+    if (!inventory) return null;
+    const map = new Map<number, number>();
+    for (const item of inventory.items) {
+      map.set(item.typeId, item.quantity);
+    }
+    return map;
+  }, [inventory]);
+
   if (isLoading) return <p className="text-gray-400">Loading...</p>;
   if (error) return <p className="text-red-400">Failed to load recipe: {(error as Error).message}</p>;
   if (!recipe) return <p className="text-gray-500">Recipe not found.</p>;
+
+  const timesCraftable = inventoryMap ? calcTimesCraftable(recipe, inventoryMap) : null;
 
   return (
     <div className="space-y-6">
@@ -25,31 +47,58 @@ export function RecipePage() {
         <div className="bg-gray-800 rounded-lg p-4 space-y-3">
           <h2 className="text-lg font-semibold">Ingredients</h2>
           <ul className="space-y-2 text-sm">
-            {recipe.ingredients.map((ing) => (
-              <li key={ing.itemId} className="flex items-center gap-2">
-                <span className="text-gray-400">{ing.stackSize}x</span>
-                <Link to={`/items/${ing.itemId}`} className="text-blue-400 hover:text-blue-300">
-                  {ing.itemName}
-                </Link>
-                <span className="text-gray-500 text-xs">
-                  ({ing.stackSize > 1 ? `${ing.value.toLocaleString()}c x ${ing.stackSize} = ${(ing.value * ing.stackSize).toLocaleString()}c` : `${ing.value.toLocaleString()}c`})
-                </span>
-                {ing.chanceToConsume != null && ing.chanceToConsume < 1 && (
-                  <span className="text-xs text-gray-500">
-                    {Math.round(ing.chanceToConsume * 100)}% consumed
+            {recipe.ingredients.map((ing) => {
+              const owned = inventoryMap ? (inventoryMap.get(ing.itemId) ?? 0) : null;
+              return (
+                <li key={ing.itemId} className="flex items-center gap-2">
+                  <span className="text-gray-400">{ing.stackSize}x</span>
+                  <Link to={`/items/${ing.itemId}`} className="text-blue-400 hover:text-blue-300">
+                    {ing.itemName}
+                  </Link>
+                  <span className="text-gray-500 text-xs">
+                    ({ing.stackSize > 1 ? `${ing.value.toLocaleString()}c x ${ing.stackSize} = ${(ing.value * ing.stackSize).toLocaleString()}c` : `${ing.value.toLocaleString()}c`})
                   </span>
-                )}
-              </li>
-            ))}
-            {recipe.genericIngredients.map((ing, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <span className="text-gray-400">{ing.stackSize}x</span>
-                <span className="text-gray-300">{ing.desc}</span>
-                <span className="text-xs px-1.5 py-0.5 bg-purple-900/50 text-purple-300 rounded">
-                  {ing.itemKeys.join(', ')}
-                </span>
-              </li>
-            ))}
+                  {ing.chanceToConsume != null && ing.chanceToConsume < 1 && (
+                    <span className="text-xs text-gray-500">
+                      {Math.round(ing.chanceToConsume * 100)}% consumed
+                    </span>
+                  )}
+                  {owned != null && (
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                      owned >= ing.stackSize ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'
+                    }`}>
+                      {owned} owned
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+            {recipe.genericIngredients.map((ing, i) => {
+              let bestOwned: number | null = null;
+              if (inventoryMap) {
+                bestOwned = 0;
+                for (const key of ing.itemKeys) {
+                  const qty = inventoryMap.get(parseInt(key, 10)) ?? 0;
+                  if (qty > bestOwned) bestOwned = qty;
+                }
+              }
+              return (
+                <li key={i} className="flex items-center gap-2">
+                  <span className="text-gray-400">{ing.stackSize}x</span>
+                  <span className="text-gray-300">{ing.desc}</span>
+                  <span className="text-xs px-1.5 py-0.5 bg-purple-900/50 text-purple-300 rounded">
+                    {ing.itemKeys.join(', ')}
+                  </span>
+                  {bestOwned != null && (
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                      bestOwned >= ing.stackSize ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'
+                    }`}>
+                      {bestOwned} owned
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
@@ -57,7 +106,19 @@ export function RecipePage() {
       {/* Results */}
       {recipe.results.length > 0 && (
         <div className="bg-gray-800 rounded-lg p-4 space-y-3">
-          <h2 className="text-lg font-semibold">Results</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold">Results</h2>
+            {timesCraftable != null && timesCraftable > 0 && (
+              <span className="text-sm text-green-400">
+                Can craft {timesCraftable}x
+              </span>
+            )}
+            {timesCraftable === 0 && (
+              <span className="text-sm text-red-400">
+                Missing ingredients
+              </span>
+            )}
+          </div>
           <ul className="space-y-2 text-sm">
             {recipe.results.map((res) => (
               <li key={res.itemId} className="flex items-center gap-2">
@@ -78,6 +139,140 @@ export function RecipePage() {
           </ul>
         </div>
       )}
+      {/* Profitability */}
+      {recipe.results.length > 0 && (() => {
+        let ingredientCost = 0;
+        for (const ing of recipe.ingredients) {
+          const consume = ing.chanceToConsume ?? 1;
+          ingredientCost += ing.value * ing.stackSize * consume;
+        }
+        let resultValue = 0;
+        for (const res of recipe.results) {
+          const chance = res.percentChance ?? 1;
+          resultValue += res.value * res.stackSize * chance;
+        }
+        const profit = resultValue - ingredientCost;
+        const showTotal = timesCraftable != null && timesCraftable > 0;
+
+        // Vendor fill: recalculate cost using 2x value for missing ingredients
+        let vendorFillCost: number | null = null;
+        if (inventoryMap && timesCraftable === 0) {
+          vendorFillCost = 0;
+          for (const ing of recipe.ingredients) {
+            const consume = ing.chanceToConsume ?? 1;
+            const owned = inventoryMap.get(ing.itemId) ?? 0;
+            if (owned >= ing.stackSize) {
+              vendorFillCost += ing.value * ing.stackSize * consume;
+            } else {
+              const vendorPrice = ing.value * 2;
+              vendorFillCost += vendorPrice * ing.stackSize * consume;
+            }
+          }
+          for (const gen of recipe.genericIngredients) {
+            let hasAny = false;
+            for (const key of gen.itemKeys) {
+              const owned = inventoryMap.get(parseInt(key, 10)) ?? 0;
+              if (owned >= gen.stackSize) { hasAny = true; break; }
+            }
+            if (hasAny) {
+              // Use base value — but we don't have generic ingredient values, so skip
+              // Generic ingredients don't have a value field, so vendor cost can't be calculated
+            } else {
+              // No value available for generic ingredients, can't include vendor cost
+            }
+          }
+        }
+        const vendorFillProfit = vendorFillCost != null ? resultValue - vendorFillCost : null;
+
+        return (
+          <div className="bg-gray-800 rounded-lg p-4 space-y-3">
+            <h2 className="text-lg font-semibold">Profitability</h2>
+            <div className={`flex flex-wrap gap-4 text-sm`}>
+              <div className="bg-gray-700/50 rounded-lg p-4 space-y-2 min-w-48 flex-1 max-w-xs">
+                <div className="text-gray-300 font-medium">Per Craft</div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Cost</span>
+                  <span className="font-mono text-gray-300">{Math.round(ingredientCost).toLocaleString()}c</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Value</span>
+                  <span className="font-mono text-gray-300">{Math.round(resultValue).toLocaleString()}c</span>
+                </div>
+                <div className="flex justify-between border-t border-gray-600 pt-2">
+                  <span className="text-gray-400">Profit</span>
+                  <span className={`font-mono font-medium ${
+                    profit > 0 ? 'text-green-400' : profit < 0 ? 'text-red-400' : 'text-gray-400'
+                  }`}>
+                    {profit > 0 ? '+' : ''}{Math.round(profit).toLocaleString()}c
+                  </span>
+                </div>
+              </div>
+              {showTotal && (
+                <div className="bg-gray-700/50 rounded-lg p-4 space-y-2 min-w-48 flex-1 max-w-xs">
+                  <div className="text-gray-300 font-medium">Total ({timesCraftable}x)</div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Cost</span>
+                    <span className="font-mono text-gray-300">{Math.round(ingredientCost * timesCraftable).toLocaleString()}c</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Value</span>
+                    <span className="font-mono text-gray-300">{Math.round(resultValue * timesCraftable).toLocaleString()}c</span>
+                  </div>
+                  <div className="flex justify-between border-t border-gray-600 pt-2">
+                    <span className="text-gray-400">Profit</span>
+                    <span className={`font-mono font-medium ${
+                      profit > 0 ? 'text-green-400' : profit < 0 ? 'text-red-400' : 'text-gray-400'
+                    }`}>
+                      {profit > 0 ? '+' : ''}{Math.round(profit * timesCraftable).toLocaleString()}c
+                    </span>
+                  </div>
+                </div>
+              )}
+              {vendorFillCost != null && (
+                <div className="bg-amber-900/20 rounded-lg p-4 space-y-2 min-w-48 flex-1 max-w-xs border border-amber-800/30">
+                  <div className="text-amber-400 font-medium">With Vendor Fill</div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Cost</span>
+                    <span className="font-mono text-gray-300">{Math.round(vendorFillCost).toLocaleString()}c</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Value</span>
+                    <span className="font-mono text-gray-300">{Math.round(resultValue).toLocaleString()}c</span>
+                  </div>
+                  <div className="flex justify-between border-t border-amber-800/30 pt-2">
+                    <span className="text-gray-400">Profit</span>
+                    <span className={`font-mono font-medium ${
+                      vendorFillProfit! > 0 ? 'text-green-400' : vendorFillProfit! < 0 ? 'text-red-400' : 'text-gray-400'
+                    }`}>
+                      {vendorFillProfit! > 0 ? '+' : ''}{Math.round(vendorFillProfit!).toLocaleString()}c
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
+}
+
+function calcTimesCraftable(recipe: Recipe, inventoryMap: Map<number, number>): number {
+  let times = Infinity;
+
+  for (const ing of recipe.ingredients) {
+    const owned = inventoryMap.get(ing.itemId) ?? 0;
+    times = Math.min(times, Math.floor(owned / ing.stackSize));
+  }
+
+  for (const gen of recipe.genericIngredients) {
+    let best = 0;
+    for (const key of gen.itemKeys) {
+      const owned = inventoryMap.get(parseInt(key, 10)) ?? 0;
+      best = Math.max(best, Math.floor(owned / gen.stackSize));
+    }
+    times = Math.min(times, best);
+  }
+
+  return times === Infinity ? 0 : times;
 }

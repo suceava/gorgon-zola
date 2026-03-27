@@ -4,6 +4,7 @@ import { Admin } from './pages/Admin.tsx';
 import { Crafting } from './pages/Crafting.tsx';
 import { Home } from './pages/Home.tsx';
 import { ItemPage } from './pages/ItemPage.tsx';
+import { ItemProfitPage } from './pages/ItemProfitPage.tsx';
 import { RecipePage } from './pages/RecipePage.tsx';
 import { Items } from './pages/Items.tsx';
 
@@ -17,6 +18,7 @@ export function App() {
           <Route path="/crafting" element={<Crafting />} />
           <Route path="/items" element={<Items />} />
           <Route path="/items/:id" element={<ItemPage />} />
+          <Route path="/items/:id/profit" element={<ItemProfitPage />} />
           <Route path="/recipes/:id" element={<RecipePage />} />
           <Route path="/admin" element={<Admin />} />
         </Routes>
