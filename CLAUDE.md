@@ -71,7 +71,7 @@ Selective deployment via DEPLOY_SERVICE env var.
 
 All data from `https://cdn.projectgorgon.com/v466/data/`. Files are keyed by entity ID (e.g. `"item_45708"`, `"recipe_1125"`).
 
-**Vendor pricing**: NPC vendors always sell items at **2x the item's `Value`** field. This multiplier is constant across all vendors and items.
+**Vendor pricing**: NPC vendors sell items at roughly **2x the item's `Value`** field for items they don't natively stock. Vendors who natively carry an item may charge a different (often higher) price not available in the game data. The frontend uses 2x as an estimate for "vendor fill" profitability calculations.
 
 ### items.json
 

@@ -196,7 +196,7 @@ export function RecipePage() {
               )}
               {vendorFillCost != null && (
                 <div className="bg-amber-900/20 rounded-lg p-4 space-y-2 min-w-48 flex-1 max-w-xs border border-amber-800/30">
-                  <div className="text-amber-400 font-medium">With Vendor Fill</div>
+                  <div className="text-amber-400 font-medium">Vendor Fill (~2x)</div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Cost</span>
                     <span className="font-mono text-gray-300">{Math.round(vendorFillCost).toLocaleString()}c</span>
