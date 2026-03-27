@@ -1,0 +1,328 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import type { Recipe } from '../types/recipes';
+import type { StoredInventory, StoredCharacter } from '../types/character';
+
+interface Props {
+  inventory: StoredInventory;
+  character: StoredCharacter;
+  recipes: Recipe[];
+  recipesLoading: boolean;
+}
+
+interface CraftableRecipe {
+  recipe: Recipe;
+  ingredientCost: number;
+  resultValue: number;
+  profit: number;
+  timesCraftable: number;
+  totalProfit: number;
+  hasAllIngredients: boolean;
+  missingIngredients: string[];
+}
+
+type SortField = 'profit' | 'totalProfit' | 'name' | 'skill';
+type Filter = 'all' | 'craftable' | 'profitable';
+
+const FILTER_KEY = 'gorgon-zola-craft-filters';
+
+function loadFilters(): { sortField: SortField; sortAsc: boolean; filter: Filter; skillFilter: string } {
+  const raw = localStorage.getItem(FILTER_KEY);
+  if (!raw) return { sortField: 'profit', sortAsc: false, filter: 'craftable', skillFilter: '' };
+  return JSON.parse(raw);
+}
+
+function saveFilters(state: { sortField: SortField; sortAsc: boolean; filter: Filter; skillFilter: string }) {
+  localStorage.setItem(FILTER_KEY, JSON.stringify(state));
+}
+
+export function ProfitabilityResults({ inventory, character, recipes, recipesLoading }: Props) {
+  const [sortField, setSortField] = useState<SortField>(() => loadFilters().sortField);
+  const [sortAsc, setSortAsc] = useState(() => loadFilters().sortAsc);
+  const [filter, setFilter] = useState<Filter>(() => loadFilters().filter);
+  const [skillFilter, setSkillFilter] = useState(() => loadFilters().skillFilter);
+
+  useEffect(() => {
+    saveFilters({ sortField, sortAsc, filter, skillFilter });
+  }, [sortField, sortAsc, filter, skillFilter]);
+
+  const inventoryMap = useMemo(() => {
+    const map = new Map<number, { quantity: number; value: number; name: string }>();
+    for (const item of inventory.items) {
+      map.set(item.typeId, { quantity: item.quantity, value: item.value, name: item.name });
+    }
+    return map;
+  }, [inventory]);
+
+  const craftableRecipes = useMemo(() => {
+    const results: CraftableRecipe[] = [];
+
+    for (const recipe of recipes) {
+      const userLevel = character.skills[recipe.skill];
+      if (userLevel === undefined || userLevel < recipe.skillLevelReq) continue;
+      if (recipe.results.length === 0) continue;
+
+      let ingredientCost = 0;
+      let timesCraftable = Infinity;
+      let hasAllIngredients = true;
+      const missingIngredients: string[] = [];
+
+      for (const ing of recipe.ingredients) {
+        const consume = ing.chanceToConsume ?? 1;
+        ingredientCost += ing.value * ing.stackSize * consume;
+
+        const owned = inventoryMap.get(ing.itemId);
+        if (!owned || owned.quantity < ing.stackSize) {
+          hasAllIngredients = false;
+          missingIngredients.push(ing.itemName || ing.desc || `Item ${ing.itemId}`);
+          timesCraftable = 0;
+        } else if (timesCraftable > 0) {
+          timesCraftable = Math.min(timesCraftable, Math.floor(owned.quantity / ing.stackSize));
+        }
+      }
+
+      for (const gen of recipe.genericIngredients) {
+        let bestQuantity = 0;
+        let bestValue = 0;
+        for (const key of gen.itemKeys) {
+          const typeId = parseInt(key, 10);
+          const owned = inventoryMap.get(typeId);
+          if (owned && owned.quantity >= gen.stackSize) {
+            const available = Math.floor(owned.quantity / gen.stackSize);
+            if (available > bestQuantity) {
+              bestQuantity = available;
+              bestValue = owned.value;
+            }
+          }
+        }
+        if (bestQuantity === 0) {
+          hasAllIngredients = false;
+          missingIngredients.push(gen.desc);
+          timesCraftable = 0;
+        } else {
+          timesCraftable = Math.min(timesCraftable, bestQuantity);
+          ingredientCost += bestValue * gen.stackSize;
+        }
+      }
+
+      if (timesCraftable === Infinity) timesCraftable = 0;
+
+      let resultValue = 0;
+      for (const res of recipe.results) {
+        const chance = res.percentChance ?? 1;
+        resultValue += res.value * res.stackSize * chance;
+      }
+
+      const profit = resultValue - ingredientCost;
+      const totalProfit = profit * timesCraftable;
+
+      results.push({
+        recipe,
+        ingredientCost,
+        resultValue,
+        profit,
+        timesCraftable,
+        totalProfit,
+        hasAllIngredients,
+        missingIngredients,
+      });
+    }
+
+    return results;
+  }, [recipes, character, inventoryMap]);
+
+  const availableSkills = useMemo(() => {
+    const skills = new Set(craftableRecipes.map((r) => r.recipe.skill));
+    return Array.from(skills).sort();
+  }, [craftableRecipes]);
+
+  const displayedRecipes = useMemo(() => {
+    let filtered = craftableRecipes;
+
+    if (filter === 'craftable') {
+      filtered = filtered.filter((r) => r.hasAllIngredients);
+    } else if (filter === 'profitable') {
+      filtered = filtered.filter((r) => r.profit > 0);
+    }
+
+    if (skillFilter) {
+      filtered = filtered.filter((r) => r.recipe.skill === skillFilter);
+    }
+
+    filtered.sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case 'profit':
+          cmp = a.profit - b.profit;
+          break;
+        case 'totalProfit':
+          cmp = a.totalProfit - b.totalProfit;
+          break;
+        case 'name':
+          cmp = a.recipe.name.localeCompare(b.recipe.name);
+          break;
+        case 'skill':
+          cmp = a.recipe.skill.localeCompare(b.recipe.skill) || a.recipe.skillLevelReq - b.recipe.skillLevelReq;
+          break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+
+    return filtered;
+  }, [craftableRecipes, filter, skillFilter, sortField, sortAsc]);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortAsc(!sortAsc);
+    } else {
+      setSortField(field);
+      setSortAsc(false);
+    }
+  };
+
+  if (recipesLoading) {
+    return <p className="text-gray-400">Loading recipes...</p>;
+  }
+
+  const totalCraftable = craftableRecipes.filter((r) => r.hasAllIngredients).length;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-4 items-center">
+        <div className="flex gap-2">
+          {(['profitable', 'craftable', 'all'] as Filter[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-3 py-1 text-sm rounded transition-colors ${
+                filter === f ? 'bg-amber-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              {f === 'profitable' ? 'Profitable' : f === 'craftable' ? 'Have Ingredients' : 'All Recipes'}
+            </button>
+          ))}
+        </div>
+        <select
+          value={skillFilter}
+          onChange={(e) => setSkillFilter(e.target.value)}
+          className="bg-gray-700 text-sm rounded px-3 py-1 border border-gray-600"
+        >
+          <option value="">All Skills</option>
+          {availableSkills.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <span className="text-sm text-gray-500">
+          {displayedRecipes.length} recipes shown · {totalCraftable} craftable now
+        </span>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-700 text-left">
+              <SortHeader field="name" current={sortField} asc={sortAsc} onClick={handleSort}>
+                Recipe
+              </SortHeader>
+              <SortHeader field="skill" current={sortField} asc={sortAsc} onClick={handleSort}>
+                Skill
+              </SortHeader>
+              <th className="px-3 py-2 text-gray-400">Ingredients</th>
+              <SortHeader field="profit" current={sortField} asc={sortAsc} onClick={handleSort}>
+                Profit
+              </SortHeader>
+              <th className="px-3 py-2 text-gray-400 text-right">Can Craft</th>
+              <SortHeader field="totalProfit" current={sortField} asc={sortAsc} onClick={handleSort}>
+                Total Profit
+              </SortHeader>
+            </tr>
+          </thead>
+          <tbody>
+            {displayedRecipes.map((r) => (
+              <tr key={r.recipe.id} className="border-b border-gray-800 hover:bg-gray-800/50">
+                <td className="px-3 py-2">
+                  <Link to={`/recipes/${r.recipe.id}`} className="text-amber-400 hover:text-amber-300">
+                    {r.recipe.name}
+                  </Link>
+                </td>
+                <td className="px-3 py-2 text-gray-400">
+                  {r.recipe.skill} {r.recipe.skillLevelReq}
+                </td>
+                <td className="px-3 py-2">
+                  {r.hasAllIngredients ? (
+                    <span className="text-green-400 text-xs">All owned</span>
+                  ) : (
+                    <span
+                      className="text-red-400 text-xs cursor-help"
+                      title={r.missingIngredients.join(', ')}
+                    >
+                      Missing {r.missingIngredients.length}
+                    </span>
+                  )}
+                </td>
+                <td
+                  className={`px-3 py-2 font-mono text-right ${
+                    r.profit > 0 ? 'text-green-400' : r.profit < 0 ? 'text-red-400' : 'text-gray-400'
+                  }`}
+                >
+                  {formatGold(r.profit)}
+                </td>
+                <td className="px-3 py-2 text-gray-400 font-mono text-right">{r.timesCraftable}x</td>
+                <td
+                  className={`px-3 py-2 font-mono text-right ${
+                    r.totalProfit > 0 ? 'text-green-400' : r.totalProfit < 0 ? 'text-red-400' : 'text-gray-400'
+                  }`}
+                >
+                  {formatGold(r.totalProfit)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {displayedRecipes.length === 0 && (
+        <p className="text-gray-500 italic text-center py-8">
+          {filter === 'craftable'
+            ? 'No recipes with all ingredients in your inventory.'
+            : filter === 'profitable'
+              ? 'No profitable recipes found for your skill levels.'
+              : 'No recipes match your current skill levels.'}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function formatGold(amount: number): string {
+  const rounded = Math.round(amount);
+  if (rounded === 0) return '0';
+  const sign = rounded > 0 ? '+' : '';
+  return `${sign}${rounded.toLocaleString()}`;
+}
+
+function SortHeader({
+  field,
+  current,
+  asc,
+  onClick,
+  children,
+}: {
+  field: SortField;
+  current: SortField;
+  asc: boolean;
+  onClick: (field: SortField) => void;
+  children: React.ReactNode;
+}) {
+  const active = field === current;
+  return (
+    <th
+      className="px-3 py-2 text-gray-400 cursor-pointer hover:text-white select-none text-right"
+      onClick={() => onClick(field)}
+    >
+      {children} {active ? (asc ? '\u2191' : '\u2193') : ''}
+    </th>
+  );
+}
