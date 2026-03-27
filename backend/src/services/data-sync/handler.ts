@@ -3,6 +3,7 @@ import { batchPut, EntityType, keys } from '../../lib/db.js';
 import type { ItemRecipe, ItemSource } from '../../domain/item.js';
 import type { NpcItem } from '../../domain/npc.js';
 import type { QuestItem } from '../../domain/quest.js';
+import type { RecipeSource } from '../../domain/recipe.js';
 
 const GAME_DATA_URL = process.env.GAME_DATA_URL!;
 
@@ -93,6 +94,19 @@ interface RawSourceEntry {
 
 interface RawSourceItem {
   entries: RawSourceEntry[];
+}
+
+interface RawSourceRecipeEntry {
+  type: string;
+  npc?: string;
+  questId?: number;
+  hangOutId?: number;
+  itemTypeId?: number;
+  skill?: string;
+}
+
+interface RawSourceRecipe {
+  entries: RawSourceRecipeEntry[];
 }
 
 function parseId(key: string): string {
@@ -251,10 +265,29 @@ function transformItems(
   });
 }
 
-function transformRecipes(rawRecipes: Record<string, RawRecipe>, itemNames: Map<string, string>, rawItems: Record<string, RawItem>) {
+function transformRecipes(
+  rawRecipes: Record<string, RawRecipe>,
+  itemNames: Map<string, string>,
+  rawItems: Record<string, RawItem>,
+  rawRecipeSources: Record<string, RawSourceRecipe>,
+  rawNpcs: Record<string, RawNpc>,
+  rawQuests: Record<string, RawQuest>,
+) {
   return Object.entries(rawRecipes).map(([key, recipe]) => {
     const id = parseId(key);
     const { pk, sk } = keys.recipe(id);
+    const sources: RecipeSource[] = (rawRecipeSources[key]?.entries ?? []).map((entry) => ({
+      type: entry.type,
+      name: entry.npc ? rawNpcs[entry.npc]?.Name
+        : entry.questId != null ? rawQuests[`quest_${entry.questId}`]?.Name
+        : entry.itemTypeId != null ? rawItems[`item_${entry.itemTypeId}`]?.Name
+        : undefined,
+      npc: entry.npc,
+      questId: entry.questId,
+      hangOutId: entry.hangOutId,
+      itemTypeId: entry.itemTypeId,
+      skill: entry.skill,
+    }));
     return {
       pk,
       sk,
@@ -289,6 +322,7 @@ function transformRecipes(rawRecipes: Record<string, RawRecipe>, itemNames: Map<
         percentChance: res.PercentChance,
       })),
       iconId: recipe.IconId,
+      sources,
     };
   });
 }
@@ -356,12 +390,13 @@ function transformQuests(
 export const handler: ScheduledHandler = async () => {
   console.log('Starting game data sync...');
 
-  const [itemsRaw, recipesRaw, npcsRaw, questsRaw, sourcesRaw] = await Promise.all([
+  const [itemsRaw, recipesRaw, npcsRaw, questsRaw, sourcesRaw, recipeSourcesRaw] = await Promise.all([
     fetchJson<Record<string, RawItem>>('items.json'),
     fetchJson<Record<string, RawRecipe>>('recipes.json'),
     fetchJson<Record<string, RawNpc>>('npcs.json'),
     fetchJson<Record<string, RawQuest>>('quests.json'),
     fetchJson<Record<string, RawSourceItem>>('sources_items.json'),
+    fetchJson<Record<string, RawSourceRecipe>>('sources_recipes.json'),
   ]);
 
   const itemNames = buildItemNames(itemsRaw);
@@ -371,7 +406,7 @@ export const handler: ScheduledHandler = async () => {
   const itemRecords = transformItems(itemsRaw, sourcesRaw, recipeIndex, recipesRaw, questsRaw);
   console.log(`Transformed ${itemRecords.length} items`);
 
-  const recipeRecords = transformRecipes(recipesRaw, itemNames, itemsRaw);
+  const recipeRecords = transformRecipes(recipesRaw, itemNames, itemsRaw, recipeSourcesRaw, npcsRaw, questsRaw);
   console.log(`Transformed ${recipeRecords.length} recipes`);
 
   const npcRecords = transformNpcs(npcsRaw, npcItems);

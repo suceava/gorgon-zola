@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useRecipe } from '../api/hooks';
 import { calcProfit, calcVendorFillCost } from '../lib/crafting';
 import type { StoredInventory } from '../types/character';
-import type { Recipe } from '../types/recipes';
+import type { Recipe, RecipeSource } from '../types/recipes';
 
 const INV_KEY = 'gorgon-zola-game-inventory';
 
@@ -42,6 +42,23 @@ export function RecipePage() {
           {recipe.skill} - Level {recipe.skillLevelReq}
         </p>
       </div>
+
+      {/* Sources */}
+      {recipe.sources && recipe.sources.length > 0 && (
+        <div className="bg-gray-800 rounded-lg p-4 space-y-3">
+          <h2 className="text-lg font-semibold">How to Get</h2>
+          <ul className="space-y-2 text-sm">
+            {recipe.sources.map((source, i) => (
+              <li key={i} className="flex items-center gap-2">
+                <span className="text-xs px-1.5 py-0.5 bg-amber-900/50 text-amber-400 rounded">
+                  {source.type}
+                </span>
+                <RecipeSourceLabel source={source} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Ingredients */}
       {(recipe.ingredients.length > 0 || recipe.genericIngredients.length > 0) && (
@@ -241,4 +258,27 @@ function calcTimesCraftable(recipe: Recipe, inventoryMap: Map<number, number>): 
   }
 
   return times === Infinity ? 0 : times;
+}
+
+function RecipeSourceLabel({ source }: { source: RecipeSource }) {
+  switch (source.type) {
+    case 'Training':
+      return <span className="text-gray-300">{source.name ?? source.npc ?? 'NPC trainer'}</span>;
+    case 'Skill':
+      return <span className="text-gray-300">Auto-learned ({source.skill})</span>;
+    case 'Quest':
+      return <span className="text-gray-300">{source.name ?? `Quest #${source.questId}`}</span>;
+    case 'HangOut':
+      return <span className="text-gray-300">{source.name ? `${source.name} hangout` : source.npc ? `${source.npc} hangout` : 'Hangout'}</span>;
+    case 'Item':
+      return source.itemTypeId != null ? (
+        <Link to={`/items/${source.itemTypeId}`} className="text-blue-400 hover:text-blue-300">
+          {source.name ?? `Item #${source.itemTypeId}`}
+        </Link>
+      ) : null;
+    case 'Effect':
+      return <span className="text-gray-300">Ability effect</span>;
+    default:
+      return <span className="text-gray-300">{source.type}</span>;
+  }
 }

@@ -21,6 +21,16 @@ export interface RecipeResult {
   percentChance?: number;
 }
 
+export interface RecipeSource {
+  type: string;
+  name?: string;
+  npc?: string;
+  questId?: number;
+  hangOutId?: number;
+  itemTypeId?: number;
+  skill?: string;
+}
+
 export interface Recipe {
   id: string;
   name: string;
@@ -33,4 +43,5 @@ export interface Recipe {
   ingredients: RecipeIngredient[];
   genericIngredients: RecipeGenericIngredient[];
   results: RecipeResult[];
+  sources?: RecipeSource[];
 }
