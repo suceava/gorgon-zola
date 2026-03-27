@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useRecipe } from '../api/hooks';
+import { calcProfit, calcVendorFillCost } from '../lib/crafting';
 import type { StoredInventory } from '../types/character';
 import type { Recipe } from '../types/recipes';
 
@@ -141,47 +142,12 @@ export function RecipePage() {
       )}
       {/* Profitability */}
       {recipe.results.length > 0 && (() => {
-        let ingredientCost = 0;
-        for (const ing of recipe.ingredients) {
-          const consume = ing.chanceToConsume ?? 1;
-          ingredientCost += ing.value * ing.stackSize * consume;
-        }
-        let resultValue = 0;
-        for (const res of recipe.results) {
-          const chance = res.percentChance ?? 1;
-          resultValue += res.value * res.stackSize * chance;
-        }
-        const profit = resultValue - ingredientCost;
+        const { ingredientCost, resultValue, profit } = calcProfit(recipe);
         const showTotal = timesCraftable != null && timesCraftable > 0;
 
-        // Vendor fill: recalculate cost using 2x value for missing ingredients
-        let vendorFillCost: number | null = null;
-        if (inventoryMap && timesCraftable === 0) {
-          vendorFillCost = 0;
-          for (const ing of recipe.ingredients) {
-            const consume = ing.chanceToConsume ?? 1;
-            const owned = inventoryMap.get(ing.itemId) ?? 0;
-            if (owned >= ing.stackSize) {
-              vendorFillCost += ing.value * ing.stackSize * consume;
-            } else {
-              const vendorPrice = ing.value * 2;
-              vendorFillCost += vendorPrice * ing.stackSize * consume;
-            }
-          }
-          for (const gen of recipe.genericIngredients) {
-            let hasAny = false;
-            for (const key of gen.itemKeys) {
-              const owned = inventoryMap.get(parseInt(key, 10)) ?? 0;
-              if (owned >= gen.stackSize) { hasAny = true; break; }
-            }
-            if (hasAny) {
-              // Use base value — but we don't have generic ingredient values, so skip
-              // Generic ingredients don't have a value field, so vendor cost can't be calculated
-            } else {
-              // No value available for generic ingredients, can't include vendor cost
-            }
-          }
-        }
+        const vendorFillCost = inventoryMap && timesCraftable === 0
+          ? calcVendorFillCost(recipe, inventoryMap)
+          : null;
         const vendorFillProfit = vendorFillCost != null ? resultValue - vendorFillCost : null;
 
         return (

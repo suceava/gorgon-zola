@@ -5,7 +5,8 @@ quests, and their relationships. Includes crafting profitability analysis.
 
 ## Game Data Source
 
-JSON files from https://cdn.projectgorgon.com/v456/data/index.html
+JSON files from https://cdn.projectgorgon.com/v466/data/index.html
+**Warning**: The URL path includes the game version (e.g. `v466`). This changes with game patches — when data sync breaks, check if the version has been bumped and update `GAME_DATA_URL` in `.env`.
 Key files: items.json, recipes.json, npcs.json, quests.json, sources_items.json
 
 ## Architecture
@@ -35,6 +36,7 @@ DynamoDB                               (single table)
   - `src/api/fetch.ts` - Raw fetch wrapper (`apiGet`, `apiPost`). No framework dependency.
   - `src/api/hooks.ts` - TanStack Query hooks wrapping fetch. Components import hooks, not fetch directly. If swapping TanStack Query, only this file changes.
   - `src/types/` - Frontend-owned API response types (`items.ts`, `recipes.ts`, `prices.ts`). Clean boundary — no shared imports from backend.
+  - `src/lib/crafting.ts` - Shared crafting calculation helpers (`calcIngredientCost`, `calcResultValue`, `calcProfit`, `calcVendorFillCost`, `VENDOR_MULTIPLIER`). Used by recipe page, item profit page, and profitability results.
 - `backend/` - All backend code (workspace). Uses **repository pattern** for data access.
   - `src/api/` - Thin Lambda handlers. One file per HTTP method+resource (e.g. `get-items.ts`, `post-price.ts`). Handlers only parse requests, call repository methods, and return JSON. No DynamoDB details, no PK/SK strings, no business logic.
   - `src/services/` - Background Lambda handlers (data-sync, migration).
@@ -67,7 +69,9 @@ Selective deployment via DEPLOY_SERVICE env var.
 
 ## Game Data Shapes
 
-All data from `https://cdn.projectgorgon.com/v456/data/`. Files are keyed by entity ID (e.g. `"item_45708"`, `"recipe_1125"`).
+All data from `https://cdn.projectgorgon.com/v466/data/`. Files are keyed by entity ID (e.g. `"item_45708"`, `"recipe_1125"`).
+
+**Vendor pricing**: NPC vendors always sell items at **2x the item's `Value`** field. This multiplier is constant across all vendors and items.
 
 ### items.json
 

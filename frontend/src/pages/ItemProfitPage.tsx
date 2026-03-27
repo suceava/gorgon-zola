@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useItem, useRecipes } from '../api/hooks';
 import { ProfitabilityResults } from '../components/ProfitabilityResults';
 import type { StoredInventory, StoredCharacter } from '../types/character';
+import { calcProfit } from '../lib/crafting';
 import type { Recipe } from '../types/recipes';
 
 const INV_KEY = 'gorgon-zola-game-inventory';
@@ -74,19 +75,7 @@ function SimpleProfitTable({ recipes, loading }: { recipes: Recipe[]; loading: b
   if (recipes.length === 0) return <p className="text-gray-500 italic">No recipes use this item.</p>;
 
   const rows = recipes
-    .map((recipe) => {
-      let ingredientCost = 0;
-      for (const ing of recipe.ingredients) {
-        const consume = ing.chanceToConsume ?? 1;
-        ingredientCost += ing.value * ing.stackSize * consume;
-      }
-      let resultValue = 0;
-      for (const res of recipe.results) {
-        const chance = res.percentChance ?? 1;
-        resultValue += res.value * res.stackSize * chance;
-      }
-      return { recipe, ingredientCost, resultValue, profit: resultValue - ingredientCost };
-    })
+    .map((recipe) => ({ recipe, ...calcProfit(recipe) }))
     .sort((a, b) => b.profit - a.profit);
 
   return (

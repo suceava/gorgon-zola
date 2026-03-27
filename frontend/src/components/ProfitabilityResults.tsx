@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { calcResultValue } from '../lib/crafting';
 import type { Recipe } from '../types/recipes';
 import type { StoredInventory, StoredCharacter } from '../types/character';
 
@@ -107,12 +108,7 @@ export function ProfitabilityResults({ inventory, character, recipes, recipesLoa
 
       if (timesCraftable === Infinity) timesCraftable = 0;
 
-      let resultValue = 0;
-      for (const res of recipe.results) {
-        const chance = res.percentChance ?? 1;
-        resultValue += res.value * res.stackSize * chance;
-      }
-
+      const resultValue = calcResultValue(recipe);
       const profit = resultValue - ingredientCost;
       const totalProfit = profit * timesCraftable;
 
