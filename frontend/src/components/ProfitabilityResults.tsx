@@ -20,6 +20,7 @@ interface CraftableRecipe {
   totalProfit: number;
   hasAllIngredients: boolean;
   missingIngredients: string[];
+  hasSkill: boolean;
 }
 
 type SortField = 'profit' | 'totalProfit' | 'name' | 'skill';
@@ -27,13 +28,21 @@ type Filter = 'all' | 'craftable' | 'profitable';
 
 const FILTER_KEY = 'gorgon-zola-craft-filters';
 
-function loadFilters(): { sortField: SortField; sortAsc: boolean; filter: Filter; skillFilter: string } {
-  const raw = localStorage.getItem(FILTER_KEY);
-  if (!raw) return { sortField: 'profit', sortAsc: false, filter: 'craftable', skillFilter: '' };
-  return JSON.parse(raw);
+interface FilterState {
+  sortField: SortField;
+  sortAsc: boolean;
+  filter: Filter;
+  skillFilter: string;
+  mySkillsOnly: boolean;
 }
 
-function saveFilters(state: { sortField: SortField; sortAsc: boolean; filter: Filter; skillFilter: string }) {
+function loadFilters(): FilterState {
+  const raw = localStorage.getItem(FILTER_KEY);
+  if (!raw) return { sortField: 'profit', sortAsc: false, filter: 'craftable', skillFilter: '', mySkillsOnly: true };
+  return { mySkillsOnly: true, ...JSON.parse(raw) };
+}
+
+function saveFilters(state: FilterState) {
   localStorage.setItem(FILTER_KEY, JSON.stringify(state));
 }
 
@@ -42,10 +51,11 @@ export function ProfitabilityResults({ inventory, character, recipes, recipesLoa
   const [sortAsc, setSortAsc] = useState(() => loadFilters().sortAsc);
   const [filter, setFilter] = useState<Filter>(() => loadFilters().filter);
   const [skillFilter, setSkillFilter] = useState(() => loadFilters().skillFilter);
+  const [mySkillsOnly, setMySkillsOnly] = useState(() => loadFilters().mySkillsOnly);
 
   useEffect(() => {
-    saveFilters({ sortField, sortAsc, filter, skillFilter });
-  }, [sortField, sortAsc, filter, skillFilter]);
+    saveFilters({ sortField, sortAsc, filter, skillFilter, mySkillsOnly });
+  }, [sortField, sortAsc, filter, skillFilter, mySkillsOnly]);
 
   const inventoryMap = useMemo(() => {
     const map = new Map<number, { quantity: number; value: number; name: string }>();
@@ -60,7 +70,8 @@ export function ProfitabilityResults({ inventory, character, recipes, recipesLoa
 
     for (const recipe of recipes) {
       const userLevel = character.skills[recipe.skill];
-      if (userLevel === undefined || userLevel < recipe.skillLevelReq) continue;
+      const hasSkill = userLevel !== undefined && userLevel >= recipe.skillLevelReq;
+      if (mySkillsOnly && !hasSkill) continue;
       if (recipe.results.length === 0) continue;
 
       let ingredientCost = 0;
@@ -118,6 +129,7 @@ export function ProfitabilityResults({ inventory, character, recipes, recipesLoa
         resultValue,
         profit,
         timesCraftable,
+        hasSkill,
         totalProfit,
         hasAllIngredients,
         missingIngredients,
@@ -125,7 +137,7 @@ export function ProfitabilityResults({ inventory, character, recipes, recipesLoa
     }
 
     return results;
-  }, [recipes, character, inventoryMap]);
+  }, [recipes, character, inventoryMap, mySkillsOnly]);
 
   const availableSkills = useMemo(() => {
     const skills = new Set(craftableRecipes.map((r) => r.recipe.skill));
@@ -198,6 +210,16 @@ export function ProfitabilityResults({ inventory, character, recipes, recipesLoa
             </button>
           ))}
         </div>
+        <button
+          onClick={() => setMySkillsOnly(!mySkillsOnly)}
+          className={`px-3 py-1 text-sm rounded transition-colors border ${
+            mySkillsOnly
+              ? 'border-amber-600 text-amber-400 bg-amber-900/20'
+              : 'border-gray-600 text-gray-400 hover:text-gray-300 hover:border-gray-500'
+          }`}
+        >
+          My Level
+        </button>
         <select
           value={skillFilter}
           onChange={(e) => setSkillFilter(e.target.value)}
@@ -216,20 +238,28 @@ export function ProfitabilityResults({ inventory, character, recipes, recipesLoa
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm table-fixed">
+          <colgroup>
+            <col />
+            <col className="w-44" />
+            <col className="w-28" />
+            <col className="w-28" />
+            <col className="w-24" />
+            <col className="w-28" />
+          </colgroup>
           <thead>
-            <tr className="border-b border-gray-700 text-left">
-              <SortHeader field="name" current={sortField} asc={sortAsc} onClick={handleSort}>
+            <tr className="border-b border-gray-700 text-left bg-gray-800">
+              <SortHeader field="name" current={sortField} asc={sortAsc} onClick={handleSort} align="left">
                 Recipe
               </SortHeader>
-              <SortHeader field="skill" current={sortField} asc={sortAsc} onClick={handleSort}>
+              <SortHeader field="skill" current={sortField} asc={sortAsc} onClick={handleSort} align="left">
                 Skill
               </SortHeader>
-              <th className="px-3 py-2 text-gray-400">Ingredients</th>
+              <th className="px-3 py-2 text-gray-300 font-semibold">Ingredients</th>
               <SortHeader field="profit" current={sortField} asc={sortAsc} onClick={handleSort}>
                 Profit
               </SortHeader>
-              <th className="px-3 py-2 text-gray-400 text-right">Can Craft</th>
+              <th className="px-3 py-2 text-gray-300 font-semibold text-right">Can Craft</th>
               <SortHeader field="totalProfit" current={sortField} asc={sortAsc} onClick={handleSort}>
                 Total Profit
               </SortHeader>
@@ -243,7 +273,7 @@ export function ProfitabilityResults({ inventory, character, recipes, recipesLoa
                     {r.recipe.name}
                   </Link>
                 </td>
-                <td className="px-3 py-2 text-gray-400">
+                <td className={`px-3 py-2 whitespace-nowrap ${r.hasSkill ? 'text-gray-400' : 'text-red-400'}`}>
                   {r.recipe.skill} {r.recipe.skillLevelReq}
                 </td>
                 <td className="px-3 py-2">
@@ -305,17 +335,19 @@ function SortHeader({
   asc,
   onClick,
   children,
+  align = 'right',
 }: {
   field: SortField;
   current: SortField;
   asc: boolean;
   onClick: (field: SortField) => void;
   children: React.ReactNode;
+  align?: 'left' | 'right';
 }) {
   const active = field === current;
   return (
     <th
-      className="px-3 py-2 text-gray-400 cursor-pointer hover:text-white select-none text-right"
+      className={`px-3 py-2 text-gray-300 font-semibold cursor-pointer hover:text-white select-none ${align === 'left' ? 'text-left' : 'text-right'}`}
       onClick={() => onClick(field)}
     >
       {children} {active ? (asc ? '\u2191' : '\u2193') : ''}
