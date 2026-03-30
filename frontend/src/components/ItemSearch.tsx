@@ -1,14 +1,23 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useItems } from '../api/hooks';
-import { ItemPreview } from './ItemPreview';
+import type { StoredInventory } from '../types/character';
+
+const INV_KEY = 'gorgon-zola-game-inventory';
 
 export function ItemSearch() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initial = searchParams.get('q') ?? '';
   const [query, setQuery] = useState(initial);
   const [submitted, setSubmitted] = useState(initial);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const [inventory] = useState<StoredInventory | null>(() => {
+    const raw = localStorage.getItem(INV_KEY);
+    return raw ? JSON.parse(raw) : null;
+  });
+  const inventoryMap = inventory
+    ? new Map(inventory.items.map((item) => [String(item.typeId), item.quantity]))
+    : null;
 
   const search = submitted.length >= 2 ? submitted : undefined;
   const { data: items, isLoading, error } = useItems(search);
@@ -53,27 +62,21 @@ export function ItemSearch() {
       {items && items.length === 0 && <p className="text-gray-500">No items found.</p>}
 
       {items && items.length > 0 && (
-        <div className="grid gap-2">
+        <div className="space-y-0.5">
           {items.map((item) => {
-            const expanded = expandedId === item.id;
+            const owned = inventoryMap?.get(item.id);
             return (
-              <div key={item.id}>
-                <button
-                  type="button"
-                  onClick={() => setExpandedId(expanded ? null : item.id)}
-                  className={`w-full flex items-center justify-between px-4 py-3 bg-gray-800 border border-gray-700 text-left cursor-pointer transition-colors hover:border-gray-600 ${expanded ? 'rounded-t-lg' : 'rounded-lg'}`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className={`text-gray-500 text-xs transition-transform ${expanded ? 'rotate-90' : ''}`}>&#9654;</span>
-                    <span className="text-gray-100 font-medium">{item.name}</span>
-                    {item.isCrafted && (
-                      <span className="text-xs px-1.5 py-0.5 bg-amber-900/50 text-amber-400 rounded">Crafted</span>
-                    )}
-                  </div>
-                  <span className="text-gray-400 text-sm">{item.value.toLocaleString()} councils</span>
-                </button>
-                {expanded && <ItemPreview item={item} />}
-              </div>
+              <Link
+                key={item.id}
+                to={`/items/${item.id}`}
+                className="flex items-baseline gap-2 py-1 hover:bg-gray-800/50 rounded px-1 transition-colors"
+              >
+                <span className="text-amber-400 hover:text-amber-300">{item.name}</span>
+                <span className="text-xs text-gray-500">{item.value.toLocaleString()}c</span>
+                {owned != null && (
+                  <span className="text-xs text-gray-500">· {owned}x owned</span>
+                )}
+              </Link>
             );
           })}
         </div>

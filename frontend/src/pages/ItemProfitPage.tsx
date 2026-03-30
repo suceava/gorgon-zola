@@ -22,13 +22,10 @@ export function ItemProfitPage() {
   const [character] = useState<StoredCharacter | null>(() => loadFromStorage(CHAR_KEY));
 
   const filteredRecipes = useMemo(() => {
-    if (!allRecipes || !id) return [];
-    return allRecipes.filter((recipe) => {
-      const hasSpecific = recipe.ingredients.some((ing) => String(ing.itemId) === id);
-      const hasGeneric = recipe.genericIngredients.some((gen) => gen.itemKeys.includes(id));
-      return hasSpecific || hasGeneric;
-    });
-  }, [allRecipes, id]);
+    if (!allRecipes || !item) return [];
+    const recipeIds = new Set(item.recipes?.map((r) => r.recipeId) ?? []);
+    return allRecipes.filter((recipe) => recipeIds.has(recipe.id));
+  }, [allRecipes, item]);
 
   if (itemLoading) return <p className="text-gray-400">Loading...</p>;
   if (!item) return <p className="text-gray-500">Item not found.</p>;

@@ -6,6 +6,7 @@ import { Home } from './pages/Home.tsx';
 import { ItemPage } from './pages/ItemPage.tsx';
 import { ItemProfitPage } from './pages/ItemProfitPage.tsx';
 import { RecipePage } from './pages/RecipePage.tsx';
+import { Inventory } from './pages/Inventory.tsx';
 import { Items } from './pages/Items.tsx';
 
 export function App() {
@@ -20,6 +21,7 @@ export function App() {
           <Route path="/items/:id" element={<ItemPage />} />
           <Route path="/items/:id/profit" element={<ItemProfitPage />} />
           <Route path="/recipes/:id" element={<RecipePage />} />
+          <Route path="/inventory" element={<Inventory />} />
           <Route path="/admin" element={<Admin />} />
         </Routes>
       </main>

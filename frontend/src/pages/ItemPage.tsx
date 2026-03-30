@@ -1,10 +1,19 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useItem } from '../api/hooks';
+import type { StoredInventory } from '../types/character';
 import type { ItemSource } from '../types/items';
+
+const INV_KEY = 'gorgon-zola-game-inventory';
 
 export function ItemPage() {
   const { id } = useParams<{ id: string }>();
   const { data: item, isLoading, error } = useItem(id!);
+  const [inventory] = useState<StoredInventory | null>(() => {
+    const raw = localStorage.getItem(INV_KEY);
+    return raw ? JSON.parse(raw) : null;
+  });
+  const owned = inventory?.items.find((i) => String(i.typeId) === id)?.quantity;
 
   if (isLoading) return <p className="text-gray-400">Loading...</p>;
   if (error) return <p className="text-red-400">Failed to load item: {(error as Error).message}</p>;
@@ -17,8 +26,18 @@ export function ItemPage() {
       {/* Header */}
       <div className="space-y-1">
         <h1 className="text-2xl font-bold">{item.name}</h1>
-        {item.description && <p className="text-gray-300">{item.description}</p>}
-        <p className="text-gray-400 text-sm">{item.value.toLocaleString()} councils</p>
+        <div className="flex items-center gap-3 text-lg">
+          <span className="text-amber-400 font-semibold">{item.value.toLocaleString()}c</span>
+          {owned != null && (
+            <>
+              <span className="text-gray-500">·</span>
+              <span className="text-green-400">{owned}x owned</span>
+              <span className="text-gray-500">·</span>
+              <span className="text-gray-300">{(item.value * owned).toLocaleString()}c total</span>
+            </>
+          )}
+        </div>
+        {item.description && <p className="text-gray-500 text-sm">{item.description}</p>}
       </div>
 
       {/* Stats */}
