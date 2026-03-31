@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useItems } from '../api/hooks';
-import type { StoredInventory } from '../types/character';
-
-const INV_KEY = 'gorgon-zola-game-inventory';
+import { loadInventory } from '../lib/crafting';
 
 export function ItemSearch() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -11,10 +9,7 @@ export function ItemSearch() {
   const [query, setQuery] = useState(initial);
   const [submitted, setSubmitted] = useState(initial);
 
-  const [inventory] = useState<StoredInventory | null>(() => {
-    const raw = localStorage.getItem(INV_KEY);
-    return raw ? JSON.parse(raw) : null;
-  });
+  const [inventory] = useState(() => loadInventory());
   const inventoryMap = inventory
     ? new Map(inventory.items.map((item) => [String(item.typeId), item.quantity]))
     : null;

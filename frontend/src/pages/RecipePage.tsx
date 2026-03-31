@@ -1,16 +1,8 @@
 import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useRecipe } from '../api/hooks';
-import { calcProfit, calcVendorFillCost } from '../lib/crafting';
-import type { StoredInventory } from '../types/character';
-import type { Recipe, RecipeSource } from '../types/recipes';
-
-const INV_KEY = 'gorgon-zola-game-inventory';
-
-function loadInventory(): StoredInventory | null {
-  const raw = localStorage.getItem(INV_KEY);
-  return raw ? JSON.parse(raw) : null;
-}
+import { calcProfit, calcTimesCraftable, calcVendorFillCost, loadInventory } from '../lib/crafting';
+import type { RecipeSource } from '../types/recipes';
 
 export function RecipePage() {
   const { id } = useParams<{ id: string }>();
@@ -91,32 +83,15 @@ export function RecipePage() {
                 </li>
               );
             })}
-            {recipe.genericIngredients.map((ing, i) => {
-              let bestOwned: number | null = null;
-              if (inventoryMap) {
-                bestOwned = 0;
-                for (const key of ing.itemKeys) {
-                  const qty = inventoryMap.get(parseInt(key, 10)) ?? 0;
-                  if (qty > bestOwned) bestOwned = qty;
-                }
-              }
-              return (
-                <li key={i} className="flex items-center gap-2">
-                  <span className="text-gray-400">{ing.stackSize}x</span>
-                  <span className="text-gray-300">{ing.desc}</span>
-                  <span className="text-xs px-1.5 py-0.5 bg-purple-900/50 text-purple-300 rounded">
-                    {ing.itemKeys.join(', ')}
-                  </span>
-                  {bestOwned != null && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded ${
-                      bestOwned >= ing.stackSize ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'
-                    }`}>
-                      {bestOwned} owned
-                    </span>
-                  )}
-                </li>
-              );
-            })}
+            {recipe.genericIngredients.map((ing, i) => (
+              <li key={i} className="flex items-center gap-2">
+                <span className="text-gray-400">{ing.stackSize}x</span>
+                <span className="text-gray-300">{ing.desc}</span>
+                <span className="text-xs px-1.5 py-0.5 bg-purple-900/50 text-purple-300 rounded">
+                  {ing.itemKeys.join(', ')}
+                </span>
+              </li>
+            ))}
           </ul>
         </div>
       )}
@@ -238,26 +213,6 @@ export function RecipePage() {
       })()}
     </div>
   );
-}
-
-function calcTimesCraftable(recipe: Recipe, inventoryMap: Map<number, number>): number {
-  let times = Infinity;
-
-  for (const ing of recipe.ingredients) {
-    const owned = inventoryMap.get(ing.itemId) ?? 0;
-    times = Math.min(times, Math.floor(owned / ing.stackSize));
-  }
-
-  for (const gen of recipe.genericIngredients) {
-    let best = 0;
-    for (const key of gen.itemKeys) {
-      const owned = inventoryMap.get(parseInt(key, 10)) ?? 0;
-      best = Math.max(best, Math.floor(owned / gen.stackSize));
-    }
-    times = Math.min(times, best);
-  }
-
-  return times === Infinity ? 0 : times;
 }
 
 function RecipeSourceLabel({ source }: { source: RecipeSource }) {

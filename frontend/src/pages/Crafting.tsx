@@ -2,19 +2,15 @@ import { useCallback, useState } from 'react';
 import { useRecipes } from '../api/hooks';
 import { CharacterUpload } from '../components/CharacterUpload';
 import { ProfitabilityResults } from '../components/ProfitabilityResults';
+import { loadInventory, loadCharacter } from '../lib/crafting';
 import type { StoredInventory, StoredCharacter } from '../types/character';
 
 const INV_KEY = 'gorgon-zola-game-inventory';
 const CHAR_KEY = 'gorgon-zola-game-character';
 
-function loadFromStorage<T>(key: string): T | null {
-  const raw = localStorage.getItem(key);
-  return raw ? JSON.parse(raw) : null;
-}
-
 export function Crafting() {
-  const [inventory, setInventory] = useState<StoredInventory | null>(() => loadFromStorage(INV_KEY));
-  const [character, setCharacter] = useState<StoredCharacter | null>(() => loadFromStorage(CHAR_KEY));
+  const [inventory, setInventory] = useState<StoredInventory | null>(() => loadInventory());
+  const [character, setCharacter] = useState<StoredCharacter | null>(() => loadCharacter());
   const { data: recipes, isLoading: recipesLoading } = useRecipes();
 
   const handleInventoryUpload = useCallback((data: StoredInventory) => {

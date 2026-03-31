@@ -1,18 +1,13 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useItem } from '../api/hooks';
-import type { StoredInventory } from '../types/character';
+import { loadInventory } from '../lib/crafting';
 import type { ItemSource } from '../types/items';
-
-const INV_KEY = 'gorgon-zola-game-inventory';
 
 export function ItemPage() {
   const { id } = useParams<{ id: string }>();
   const { data: item, isLoading, error } = useItem(id!);
-  const [inventory] = useState<StoredInventory | null>(() => {
-    const raw = localStorage.getItem(INV_KEY);
-    return raw ? JSON.parse(raw) : null;
-  });
+  const [inventory] = useState(() => loadInventory());
   const owned = inventory?.items.find((i) => String(i.typeId) === id)?.quantity;
 
   if (isLoading) return <p className="text-gray-400">Loading...</p>;

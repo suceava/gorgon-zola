@@ -1,16 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { StoredInventory } from '../types/character';
-
-const INV_KEY = 'gorgon-zola-game-inventory';
+import { loadInventory } from '../lib/crafting';
 
 type SortField = 'name' | 'quantity' | 'value' | 'total';
 
 export function Inventory() {
-  const [inventory] = useState<StoredInventory | null>(() => {
-    const raw = localStorage.getItem(INV_KEY);
-    return raw ? JSON.parse(raw) : null;
-  });
+  const [inventory] = useState(() => loadInventory());
   const [sortField, setSortField] = useState<SortField>('total');
   const [sortAsc, setSortAsc] = useState(false);
   const [search, setSearch] = useState('');

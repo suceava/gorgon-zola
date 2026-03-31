@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { calcResultValue } from '../lib/crafting';
+import { analyzeRecipe, buildInventoryMap, formatCouncils } from '../lib/crafting';
 import type { Recipe } from '../types/recipes';
 import type { StoredInventory, StoredCharacter } from '../types/character';
 
@@ -11,17 +11,6 @@ interface Props {
   recipesLoading: boolean;
 }
 
-interface CraftableRecipe {
-  recipe: Recipe;
-  ingredientCost: number;
-  resultValue: number;
-  profit: number;
-  timesCraftable: number;
-  totalProfit: number;
-  hasAllIngredients: boolean;
-  missingIngredients: string[];
-  hasSkill: boolean;
-}
 
 type SortField = 'profit' | 'totalProfit' | 'name' | 'skill';
 type Filter = 'all' | 'craftable' | 'profitable';
@@ -57,86 +46,17 @@ export function ProfitabilityResults({ inventory, character, recipes, recipesLoa
     saveFilters({ sortField, sortAsc, filter, skillFilter, mySkillsOnly });
   }, [sortField, sortAsc, filter, skillFilter, mySkillsOnly]);
 
-  const inventoryMap = useMemo(() => {
-    const map = new Map<number, { quantity: number; value: number; name: string }>();
-    for (const item of inventory.items) {
-      map.set(item.typeId, { quantity: item.quantity, value: item.value, name: item.name });
-    }
-    return map;
-  }, [inventory]);
+  const inventoryMap = useMemo(() => buildInventoryMap(inventory), [inventory]);
 
   const craftableRecipes = useMemo(() => {
-    const results: CraftableRecipe[] = [];
-
-    for (const recipe of recipes) {
-      const userLevel = character.skills[recipe.skill];
-      const hasSkill = userLevel !== undefined && userLevel >= recipe.skillLevelReq;
-      if (mySkillsOnly && !hasSkill) continue;
-      if (recipe.results.length === 0) continue;
-
-      let ingredientCost = 0;
-      let timesCraftable = Infinity;
-      let hasAllIngredients = true;
-      const missingIngredients: string[] = [];
-
-      for (const ing of recipe.ingredients) {
-        const consume = ing.chanceToConsume ?? 1;
-        ingredientCost += ing.value * ing.stackSize * consume;
-
-        const owned = inventoryMap.get(ing.itemId);
-        if (!owned || owned.quantity < ing.stackSize) {
-          hasAllIngredients = false;
-          missingIngredients.push(ing.itemName || ing.desc || `Item ${ing.itemId}`);
-          timesCraftable = 0;
-        } else if (timesCraftable > 0) {
-          timesCraftable = Math.min(timesCraftable, Math.floor(owned.quantity / ing.stackSize));
-        }
-      }
-
-      for (const gen of recipe.genericIngredients) {
-        let bestQuantity = 0;
-        let bestValue = 0;
-        for (const key of gen.itemKeys) {
-          const typeId = parseInt(key, 10);
-          const owned = inventoryMap.get(typeId);
-          if (owned && owned.quantity >= gen.stackSize) {
-            const available = Math.floor(owned.quantity / gen.stackSize);
-            if (available > bestQuantity) {
-              bestQuantity = available;
-              bestValue = owned.value;
-            }
-          }
-        }
-        if (bestQuantity === 0) {
-          hasAllIngredients = false;
-          missingIngredients.push(gen.desc);
-          timesCraftable = 0;
-        } else {
-          timesCraftable = Math.min(timesCraftable, bestQuantity);
-          ingredientCost += bestValue * gen.stackSize;
-        }
-      }
-
-      if (timesCraftable === Infinity) timesCraftable = 0;
-
-      const resultValue = calcResultValue(recipe);
-      const profit = resultValue - ingredientCost;
-      const totalProfit = profit * timesCraftable;
-
-      results.push({
-        recipe,
-        ingredientCost,
-        resultValue,
-        profit,
-        timesCraftable,
-        hasSkill,
-        totalProfit,
-        hasAllIngredients,
-        missingIngredients,
-      });
-    }
-
-    return results;
+    return recipes
+      .filter((recipe) => {
+        if (recipe.results.length === 0) return false;
+        if (!mySkillsOnly) return true;
+        const userLevel = character.skills[recipe.skill];
+        return userLevel !== undefined && userLevel >= recipe.skillLevelReq;
+      })
+      .map((recipe) => analyzeRecipe(recipe, inventoryMap, character.skills));
   }, [recipes, character, inventoryMap, mySkillsOnly]);
 
   const availableSkills = useMemo(() => {
@@ -293,7 +213,7 @@ export function ProfitabilityResults({ inventory, character, recipes, recipesLoa
                     r.profit > 0 ? 'text-green-400' : r.profit < 0 ? 'text-red-400' : 'text-gray-400'
                   }`}
                 >
-                  {formatGold(r.profit)}
+                  {formatCouncils(r.profit)}
                 </td>
                 <td className="px-3 py-2 text-gray-400 font-mono text-right">{r.timesCraftable}x</td>
                 <td
@@ -301,7 +221,7 @@ export function ProfitabilityResults({ inventory, character, recipes, recipesLoa
                     r.totalProfit > 0 ? 'text-green-400' : r.totalProfit < 0 ? 'text-red-400' : 'text-gray-400'
                   }`}
                 >
-                  {formatGold(r.totalProfit)}
+                  {formatCouncils(r.totalProfit)}
                 </td>
               </tr>
             ))}
@@ -320,13 +240,6 @@ export function ProfitabilityResults({ inventory, character, recipes, recipesLoa
       )}
     </div>
   );
-}
-
-function formatGold(amount: number): string {
-  const rounded = Math.round(amount);
-  if (rounded === 0) return '0';
-  const sign = rounded > 0 ? '+' : '';
-  return `${sign}${rounded.toLocaleString()}`;
 }
 
 function SortHeader({

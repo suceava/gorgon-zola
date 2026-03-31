@@ -2,24 +2,16 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useItem, useRecipes } from '../api/hooks';
 import { ProfitabilityResults } from '../components/ProfitabilityResults';
+import { calcProfit, loadInventory, loadCharacter } from '../lib/crafting';
 import type { StoredInventory, StoredCharacter } from '../types/character';
-import { calcProfit } from '../lib/crafting';
 import type { Recipe } from '../types/recipes';
-
-const INV_KEY = 'gorgon-zola-game-inventory';
-const CHAR_KEY = 'gorgon-zola-game-character';
-
-function loadFromStorage<T>(key: string): T | null {
-  const raw = localStorage.getItem(key);
-  return raw ? JSON.parse(raw) : null;
-}
 
 export function ItemProfitPage() {
   const { id } = useParams<{ id: string }>();
   const { data: item, isLoading: itemLoading } = useItem(id!);
   const { data: allRecipes, isLoading: recipesLoading } = useRecipes();
-  const [inventory] = useState<StoredInventory | null>(() => loadFromStorage(INV_KEY));
-  const [character] = useState<StoredCharacter | null>(() => loadFromStorage(CHAR_KEY));
+  const [inventory] = useState<StoredInventory | null>(() => loadInventory());
+  const [character] = useState<StoredCharacter | null>(() => loadCharacter());
 
   const filteredRecipes = useMemo(() => {
     if (!allRecipes || !item) return [];

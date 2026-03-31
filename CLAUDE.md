@@ -257,18 +257,42 @@ Each value has an `entries` array describing where the item can be obtained:
 
 Table: `GorgonZola`
 
-| Entity       | PK               | SK                 | Embedded lists               |
-|--------------|------------------|--------------------|------------------------------|
-| Item         | ITEM#<id>        | METADATA           | sources[], recipes[]         |
-| Recipe       | RECIPE#<id>      | METADATA           | ingredients[], genericIngredients[], results[] |
-| NPC          | NPC#<npcId>      | METADATA           | items[]                      |
-| Quest        | QUEST#<questId>  | METADATA           | items[]                      |
-| Vendor Price | ITEM#<id>        | PRICE#<timestamp>  |                              |
+| Entity       | PK               | SK                 |
+|--------------|------------------|--------------------|
+| Item         | ITEM#<id>        | METADATA           |
+| Recipe       | RECIPE#<id>      | METADATA           |
+| NPC          | NPC#<npcId>      | METADATA           |
+| Quest        | QUEST#<questId>  | METADATA           |
+| Vendor Price | ITEM#<id>        | PRICE#<timestamp>  |
 
 All relationships are embedded on both sides (denormalized, rebuilt nightly by sync).
 
-- **Provides**: NPC/Quest/Recipe → items they provide/produce. Reverse on Item via `sources[]`.
-- **Consumes**: Recipe → items it uses as ingredients. Reverse on Item via `recipes[]`.
+- **Provides**: `NPC.items[]` / `Quest.items[]` / `Recipe.results[]` → items they provide. Reverse: `Item.sources[]` → NPCs/quests/recipes that provide this item.
+- **Consumes**: `Recipe.ingredients[]` / `Recipe.genericIngredients[]` → items a recipe uses. Reverse: `Item.recipes[]` → recipes that use this item as an ingredient.
+
+### Item fields
+
+- `keywords[]` — tags from the game data (e.g. `["GlassChunk", "AlchemyIngredient"]`). These are the link between items and generic recipe ingredients: a recipe's `genericIngredients[].itemKeys` contains keyword strings, and any item whose `keywords[]` includes that keyword satisfies the ingredient. The sync handler uses `buildKeywordIndex` to resolve this mapping.
+
+### Item embedded lists
+
+- `sources[]` — where to obtain this item. Each entry: `{ type, name?, npc?, recipeId?, questId?, hangOutId?, itemTypeId? }`. Types: Vendor, Barter, Quest, HangOut, Recipe, Item, Effect. Names resolved from recipes/quests/items during sync.
+- `recipes[]` — recipes that consume this item as an ingredient. Each entry: `{ recipeId, recipeName, skill, skillLevelReq, matchedKeyword? }`. Includes BOTH specific ingredient matches (by ItemCode) and generic ingredient matches (by keyword). When matched via keyword, `matchedKeyword` is set to the keyword that matched (e.g. `"GlassChunk"`).
+
+### Recipe embedded lists
+
+- `ingredients[]` — specific item ingredients. Each entry: `{ itemId, itemName, value, stackSize, chanceToConsume?, desc? }`. `itemId` is numeric (matches `item_<itemId>` key). `value` resolved from items during sync for profitability calculations.
+- `genericIngredients[]` — keyword-matched ingredients (e.g. "any Vegetable"). Each entry: `{ itemKeys, desc, stackSize }`. **`itemKeys` contains raw keyword strings** (e.g. `["GlassChunk"]`), NOT item IDs. These are the original keywords from the game data used for display.
+- `results[]` — items produced by the recipe. Each entry: `{ itemId, itemName, value, stackSize, percentChance? }`. `value` resolved from items during sync.
+- `sources[]` — where to learn/get the recipe. Each entry: `{ type, name?, npc?, questId?, hangOutId?, itemTypeId?, skill? }`. Types: Training, Skill, Quest, HangOut, Item, Effect.
+
+### NPC embedded lists
+
+- `items[]` — items this NPC provides (via vendor, barter, or hangout). Each entry: `{ itemId, itemName, sourceType }`.
+
+### Quest embedded lists
+
+- `items[]` — items rewarded by this quest. Each entry: `{ itemId, itemName }`.
 
 entityIndex (GSI): PK=entityType (ITEM/RECIPE/NPC/QUEST), SK=name
 
