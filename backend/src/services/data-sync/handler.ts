@@ -430,7 +430,12 @@ export const handler: ScheduledHandler = async () => {
 
   const keywordRecords = Array.from(keywordIndex.entries()).map(([keyword, itemKeys]) => {
     const { pk, sk } = keys.keyword(keyword);
-    return { pk, sk, keyword, itemIds: itemKeys.map(parseId) };
+    return {
+      pk,
+      sk,
+      keyword,
+      items: itemKeys.map((key) => ({ id: parseId(key), name: itemNames.get(key) ?? '' })),
+    };
   });
   await batchPut(keywordRecords);
   console.log(`${keywordRecords.length} keywords written to DynamoDB`);

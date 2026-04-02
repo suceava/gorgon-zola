@@ -35,9 +35,14 @@ export function useRecipes(skill?: string) {
   });
 }
 
+export interface KeywordItem {
+  id: string;
+  name: string;
+}
+
 export interface Keyword {
   keyword: string;
-  itemIds: string[];
+  items: KeywordItem[];
 }
 
 export function useKeywords(keywords: string[]) {

@@ -34,7 +34,7 @@ export function ItemProfitPage() {
   const keywordMap = useMemo(() => {
     if (!keywordData) return undefined;
     const map = new Map<string, string[]>();
-    for (const kw of keywordData) map.set(kw.keyword, kw.itemIds);
+    for (const kw of keywordData) map.set(kw.keyword, kw.items.map((i) => i.id));
     return map;
   }, [keywordData]);
 

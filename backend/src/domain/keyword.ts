@@ -1,8 +1,13 @@
 import { batchGet, keys } from '../lib/db.js';
 
+export interface KeywordItem {
+  id: string;
+  name: string;
+}
+
 export interface GameKeyword {
   keyword: string;
-  itemIds: string[];
+  items: KeywordItem[];
 }
 
 export class KeywordRepository {

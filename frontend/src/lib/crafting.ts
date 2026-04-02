@@ -146,20 +146,19 @@ export function analyzeRecipe(
   };
 }
 
-/** Find the best owned quantity for a generic ingredient by resolving its keywords to item IDs. */
+/** Sum total owned quantity across all items matching a generic ingredient's keywords. */
 export function getGenericIngredientOwned(
   itemKeys: string[],
   inventoryMap: Map<number, number>,
   keywordMap: Map<string, string[]>,
 ): number {
-  let best = 0;
+  let total = 0;
   for (const kw of itemKeys) {
     for (const itemId of keywordMap.get(kw) ?? []) {
-      const qty = inventoryMap.get(parseInt(itemId, 10)) ?? 0;
-      if (qty > best) best = qty;
+      total += inventoryMap.get(parseInt(itemId, 10)) ?? 0;
     }
   }
-  return best;
+  return total;
 }
 
 export function formatCouncils(amount: number): string {

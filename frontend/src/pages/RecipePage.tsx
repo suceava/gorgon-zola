@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useKeywords, useRecipe } from '../api/hooks';
+import { useKeywords, useRecipe, type Keyword } from '../api/hooks';
 import { calcProfit, calcTimesCraftable, calcVendorFillCost, getGenericIngredientOwned, loadInventory } from '../lib/crafting';
+import type { StoredInventory } from '../types/character';
 import type { RecipeSource } from '../types/recipes';
 
 export function RecipePage() {
@@ -32,7 +33,7 @@ export function RecipePage() {
   const keywordMap = useMemo(() => {
     if (!keywordData) return null;
     const map = new Map<string, string[]>();
-    for (const kw of keywordData) map.set(kw.keyword, kw.itemIds);
+    for (const kw of keywordData) map.set(kw.keyword, kw.items.map((i) => i.id));
     return map;
   }, [keywordData]);
 
@@ -106,19 +107,21 @@ export function RecipePage() {
                 ? getGenericIngredientOwned(ing.itemKeys, inventoryMap, keywordMap)
                 : null;
               return (
-                <li key={i} className="flex items-center gap-2">
-                  <span className="text-gray-400">{ing.stackSize}x</span>
-                  <span className="text-gray-300">{ing.desc}</span>
-                  <span className="text-xs px-1.5 py-0.5 bg-purple-900/50 text-purple-300 rounded">
-                    {ing.itemKeys.join(', ')}
-                  </span>
-                  {bestOwned != null && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded ${
-                      bestOwned >= ing.stackSize ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'
-                    }`}>
-                      {bestOwned} owned
-                    </span>
-                  )}
+                <li key={i} className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400">{ing.stackSize}x</span>
+                    <span className="text-gray-300">{ing.desc}</span>
+                    {ing.itemKeys.map((kw) => (
+                      <KeywordTag key={kw} keyword={kw} keywordData={keywordData} inventory={inventory} />
+                    ))}
+                    {bestOwned != null && (
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${
+                        bestOwned >= ing.stackSize ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'
+                      }`}>
+                        {bestOwned} owned
+                      </span>
+                    )}
+                  </div>
                 </li>
               );
             })}
@@ -266,4 +269,64 @@ function RecipeSourceLabel({ source }: { source: RecipeSource }) {
     default:
       return <span className="text-gray-300">{source.type}</span>;
   }
+}
+
+function KeywordTag({
+  keyword,
+  keywordData,
+  inventory,
+}: {
+  keyword: string;
+  keywordData: Keyword[] | undefined;
+  inventory: StoredInventory | null;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const kwData = keywordData?.find((kw) => kw.keyword === keyword);
+
+  const invLookup = useMemo(() => {
+    if (!inventory) return null;
+    const map = new Map<number, number>();
+    for (const item of inventory.items) {
+      map.set(item.typeId, item.quantity);
+    }
+    return map;
+  }, [inventory]);
+
+  const items = useMemo(() => {
+    if (!kwData) return null;
+    return kwData.items
+      .map((item) => ({
+        ...item,
+        quantity: invLookup?.get(parseInt(item.id, 10)) ?? 0,
+      }))
+      .sort((a, b) => b.quantity - a.quantity);
+  }, [kwData, invLookup]);
+
+  return (
+    <span className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="text-xs px-1.5 py-0.5 bg-purple-900/50 text-purple-300 rounded hover:bg-purple-800/50 cursor-pointer"
+      >
+        {keyword}
+      </button>
+      {expanded && items && (
+        <div className="absolute z-10 mt-1 left-0 bg-gray-700 border border-gray-600 rounded-lg p-2 shadow-lg min-w-48">
+          <ul className="space-y-1 text-xs">
+            {items.map((item) => (
+              <li key={item.id} className="flex items-center justify-between gap-3">
+                <Link to={`/items/${item.id}`} className="text-blue-400 hover:text-blue-300 truncate">
+                  {item.name}
+                </Link>
+                {item.quantity > 0 && (
+                  <span className="text-green-400 whitespace-nowrap">{item.quantity}x</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </span>
+  );
 }
