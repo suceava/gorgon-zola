@@ -264,6 +264,7 @@ Table: `GorgonZola`
 | NPC          | NPC#<npcId>      | METADATA           |
 | Quest        | QUEST#<questId>  | METADATA           |
 | Vendor Price | ITEM#<id>        | PRICE#<timestamp>  |
+| Keyword      | KEYWORD#<keyword>| METADATA           |
 
 All relationships are embedded on both sides (denormalized, rebuilt nightly by sync).
 
@@ -293,6 +294,10 @@ All relationships are embedded on both sides (denormalized, rebuilt nightly by s
 ### Quest embedded lists
 
 - `items[]` — items rewarded by this quest. Each entry: `{ itemId, itemName }`.
+
+### Keyword entity
+
+Maps a generic ingredient keyword to all item IDs that satisfy it. e.g. `KEYWORD#GlassChunk` → `{ keyword: "GlassChunk", itemIds: ["5026", "5027", ...] }`. Built during sync from `buildKeywordIndex`. Fetched via `GET /keywords?keys=GlassChunk,Vegetable` to resolve generic ingredients against inventory on the frontend.
 
 entityIndex (GSI): PK=entityType (ITEM/RECIPE/NPC/QUEST), SK=name
 

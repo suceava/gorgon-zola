@@ -1,5 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import {
+  BatchGetCommand,
   BatchWriteCommand,
   DynamoDBDocumentClient,
   GetCommand,
@@ -51,6 +52,7 @@ export const keys = {
     pk: `ITEM#${itemId}`,
     sk: `PRICE#${timestamp}`,
   }),
+  keyword: (keyword: string) => ({ pk: `KEYWORD#${keyword}`, sk: 'METADATA' }),
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -108,6 +110,22 @@ export async function get<T extends DbRecord>(pk: string, sk: string): Promise<T
 
 export async function put(item: DbRecord): Promise<void> {
   await ddb.send(new PutCommand({ TableName: TABLE_NAME, Item: item }));
+}
+
+export async function batchGet<T extends DbRecord>(keyList: { pk: string; sk: string }[]): Promise<T[]> {
+  const items: T[] = [];
+  for (let i = 0; i < keyList.length; i += BATCH_SIZE) {
+    const chunk = keyList.slice(i, i + BATCH_SIZE);
+    const result = await ddb.send(
+      new BatchGetCommand({
+        RequestItems: {
+          [TABLE_NAME]: { Keys: chunk.map(({ pk, sk }) => ({ pk, sk })) },
+        },
+      }),
+    );
+    items.push(...((result.Responses?.[TABLE_NAME] ?? []) as T[]));
+  }
+  return items;
 }
 
 // ---------------------------------------------------------------------------

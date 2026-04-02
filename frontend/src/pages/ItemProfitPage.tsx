@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useItem, useRecipes } from '../api/hooks';
+import { useItem, useKeywords, useRecipes } from '../api/hooks';
 import { ProfitabilityResults } from '../components/ProfitabilityResults';
 import { calcProfit, loadInventory, loadCharacter } from '../lib/crafting';
 import type { StoredInventory, StoredCharacter } from '../types/character';
@@ -18,6 +18,25 @@ export function ItemProfitPage() {
     const recipeIds = new Set(item.recipes?.map((r) => r.recipeId) ?? []);
     return allRecipes.filter((recipe) => recipeIds.has(recipe.id));
   }, [allRecipes, item]);
+
+  // Collect unique keywords from generic ingredients across filtered recipes
+  const keywords = useMemo(() => {
+    const kws = new Set<string>();
+    for (const recipe of filteredRecipes) {
+      for (const gen of recipe.genericIngredients) {
+        for (const kw of gen.itemKeys) kws.add(kw);
+      }
+    }
+    return Array.from(kws);
+  }, [filteredRecipes]);
+
+  const { data: keywordData } = useKeywords(keywords);
+  const keywordMap = useMemo(() => {
+    if (!keywordData) return undefined;
+    const map = new Map<string, string[]>();
+    for (const kw of keywordData) map.set(kw.keyword, kw.itemIds);
+    return map;
+  }, [keywordData]);
 
   if (itemLoading) return <p className="text-gray-400">Loading...</p>;
   if (!item) return <p className="text-gray-500">Item not found.</p>;
@@ -43,6 +62,7 @@ export function ItemProfitPage() {
           character={character}
           recipes={filteredRecipes}
           recipesLoading={recipesLoading}
+          keywordMap={keywordMap}
         />
       ) : (
         <div className="space-y-4">

@@ -9,6 +9,7 @@ interface Props {
   character: StoredCharacter;
   recipes: Recipe[];
   recipesLoading: boolean;
+  keywordMap?: Map<string, string[]>;
 }
 
 
@@ -35,7 +36,7 @@ function saveFilters(state: FilterState) {
   localStorage.setItem(FILTER_KEY, JSON.stringify(state));
 }
 
-export function ProfitabilityResults({ inventory, character, recipes, recipesLoading }: Props) {
+export function ProfitabilityResults({ inventory, character, recipes, recipesLoading, keywordMap }: Props) {
   const [sortField, setSortField] = useState<SortField>(() => loadFilters().sortField);
   const [sortAsc, setSortAsc] = useState(() => loadFilters().sortAsc);
   const [filter, setFilter] = useState<Filter>(() => loadFilters().filter);
@@ -56,8 +57,8 @@ export function ProfitabilityResults({ inventory, character, recipes, recipesLoa
         const userLevel = character.skills[recipe.skill];
         return userLevel !== undefined && userLevel >= recipe.skillLevelReq;
       })
-      .map((recipe) => analyzeRecipe(recipe, inventoryMap, character.skills));
-  }, [recipes, character, inventoryMap, mySkillsOnly]);
+      .map((recipe) => analyzeRecipe(recipe, inventoryMap, character.skills, keywordMap));
+  }, [recipes, character, inventoryMap, mySkillsOnly, keywordMap]);
 
   const availableSkills = useMemo(() => {
     const skills = new Set(craftableRecipes.map((r) => r.recipe.skill));

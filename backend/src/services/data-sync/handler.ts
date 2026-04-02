@@ -400,6 +400,7 @@ export const handler: ScheduledHandler = async () => {
   ]);
 
   const itemNames = buildItemNames(itemsRaw);
+  const keywordIndex = buildKeywordIndex(itemsRaw);
   const recipeIndex = buildRecipeIndex(recipesRaw, itemsRaw);
   const { npcItems, questItems } = buildSourceMaps(sourcesRaw, itemNames);
 
@@ -426,6 +427,13 @@ export const handler: ScheduledHandler = async () => {
 
   await batchPut(questRecords);
   console.log('Quests written to DynamoDB');
+
+  const keywordRecords = Array.from(keywordIndex.entries()).map(([keyword, itemKeys]) => {
+    const { pk, sk } = keys.keyword(keyword);
+    return { pk, sk, keyword, itemIds: itemKeys.map(parseId) };
+  });
+  await batchPut(keywordRecords);
+  console.log(`${keywordRecords.length} keywords written to DynamoDB`);
 
   console.log('Sync complete');
 };

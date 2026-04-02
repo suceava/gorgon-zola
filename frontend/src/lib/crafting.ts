@@ -30,6 +30,11 @@ export function loadCharacter(): StoredCharacter | null {
   return raw ? JSON.parse(raw) : null;
 }
 
+/**
+ * Converts the player's inventory into a Map keyed by item ID (typeId in the game export,
+ * same as recipe ingredient.itemId). Used to check if the player owns enough of each
+ * ingredient, e.g. "recipe needs 3 of item 5026 — inventory has 130".
+ */
 export function buildInventoryMap(inventory: StoredInventory): InventoryMap {
   const map: InventoryMap = new Map();
   for (const item of inventory.items) {
@@ -55,12 +60,14 @@ export function calcTimesCraftable(recipe: Recipe, inventoryMap: Map<number, num
  * Returns cost, profit, craftable count, and missing ingredients.
  *
  * Generic ingredients have keyword strings in itemKeys (e.g. "GlassChunk") which
- * can't be matched against inventory directly.
+ * can't be matched against inventory directly. Pass keywordMap (keyword → item IDs)
+ * to resolve them — built from the /keywords API endpoint.
  */
 export function analyzeRecipe(
   recipe: Recipe,
   inventoryMap: InventoryMap,
   skills: Record<string, number>,
+  keywordMap?: Map<string, string[]>,
 ): CraftableRecipe {
   const userLevel = skills[recipe.skill];
   const hasSkill = userLevel !== undefined && userLevel >= recipe.skillLevelReq;
@@ -84,7 +91,32 @@ export function analyzeRecipe(
     }
   }
 
-  // Generic ingredients have keyword strings in itemKeys — can't match against inventory
+  for (const gen of recipe.genericIngredients) {
+    if (!keywordMap) continue;
+    let bestQuantity = 0;
+    let bestValue = 0;
+    for (const keyword of gen.itemKeys) {
+      const itemIds = keywordMap.get(keyword) ?? [];
+      for (const itemId of itemIds) {
+        const owned = inventoryMap.get(parseInt(itemId, 10));
+        if (owned && owned.quantity >= gen.stackSize) {
+          const available = Math.floor(owned.quantity / gen.stackSize);
+          if (available > bestQuantity) {
+            bestQuantity = available;
+            bestValue = owned.value;
+          }
+        }
+      }
+    }
+    if (bestQuantity === 0) {
+      hasAllIngredients = false;
+      missingIngredients.push(gen.desc);
+      timesCraftable = 0;
+    } else {
+      timesCraftable = Math.min(timesCraftable, bestQuantity);
+      ingredientCost += bestValue * gen.stackSize;
+    }
+  }
 
   if (timesCraftable === Infinity) timesCraftable = 0;
 

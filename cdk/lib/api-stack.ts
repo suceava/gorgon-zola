@@ -57,6 +57,7 @@ export class ApiStack extends cdk.Stack {
       {
         'GET /items': { entry: path.join(base, 'get-items.ts') },
         'GET /recipes': { entry: path.join(base, 'get-recipes.ts') },
+        'GET /keywords': { entry: path.join(base, 'get-keywords.ts') },
         'GET /prices': { entry: path.join(base, 'get-prices.ts') },
         'POST /prices': { entry: path.join(base, 'post-price.ts') },
       },

@@ -35,6 +35,20 @@ export function useRecipes(skill?: string) {
   });
 }
 
+export interface Keyword {
+  keyword: string;
+  itemIds: string[];
+}
+
+export function useKeywords(keywords: string[]) {
+  const key = keywords.slice().sort().join(',');
+  return useQuery({
+    queryKey: ['keywords', key],
+    queryFn: () => apiGet<Keyword[]>('/keywords', { keys: key }),
+    enabled: keywords.length > 0,
+  });
+}
+
 export function usePrices(itemId: string) {
   return useQuery({
     queryKey: ['prices', itemId],
