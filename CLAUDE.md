@@ -36,7 +36,7 @@ DynamoDB                               (single table)
   - `src/api/fetch.ts` - Raw fetch wrapper (`apiGet`, `apiPost`). No framework dependency.
   - `src/api/hooks.ts` - TanStack Query hooks wrapping fetch. Components import hooks, not fetch directly. If swapping TanStack Query, only this file changes.
   - `src/types/` - Frontend-owned API response types (`items.ts`, `recipes.ts`, `prices.ts`). Clean boundary — no shared imports from backend.
-  - `src/lib/crafting.ts` - Shared crafting calculation helpers (`calcIngredientCost`, `calcResultValue`, `calcProfit`, `calcVendorFillCost`, `VENDOR_MULTIPLIER`). Used by recipe page, item profit page, and profitability results.
+  - `src/lib/crafting.ts` - Shared crafting calculation helpers (`calcIngredientCost`, `calcResultValue`, `calcProfit`, `calcVendorFillCost`, `VENDOR_MULTIPLIER`). Also inventory persistence (`loadInventory`, `loadCharacter`), inventory indexing (`buildInventoryMap`), and recipe analysis (`analyzeRecipe`, `calcTimesCraftable`, `getGenericIngredientOwned`, `formatCouncils`). Used by recipe page, item profit page, and profitability results.
 - `backend/` - All backend code (workspace). Uses **repository pattern** for data access.
   - `src/api/` - Thin Lambda handlers. One file per HTTP method+resource (e.g. `get-items.ts`, `post-price.ts`). Handlers only parse requests, call repository methods, and return JSON. No DynamoDB details, no PK/SK strings, no business logic.
   - `src/services/` - Background Lambda handlers (data-sync, migration).
@@ -297,7 +297,7 @@ All relationships are embedded on both sides (denormalized, rebuilt nightly by s
 
 ### Keyword entity
 
-Maps a generic ingredient keyword to all item IDs that satisfy it. e.g. `KEYWORD#GlassChunk` → `{ keyword: "GlassChunk", itemIds: ["5026", "5027", ...] }`. Built during sync from `buildKeywordIndex`. Fetched via `GET /keywords?keys=GlassChunk,Vegetable` to resolve generic ingredients against inventory on the frontend.
+Maps a generic ingredient keyword to all items that satisfy it. e.g. `KEYWORD#GlassChunk` → `{ keyword: "GlassChunk", items: [{ id: "5026", name: "Piece of Green Glass" }, ...] }`. Built during sync from `buildKeywordIndex`. Fetched via `GET /keywords?keys=GlassChunk,Vegetable` to resolve generic ingredients against inventory on the frontend.
 
 entityIndex (GSI): PK=entityType (ITEM/RECIPE/NPC/QUEST), SK=name
 

@@ -55,10 +55,19 @@ export function calcTimesCraftable(
     times = Math.min(times, Math.floor(owned / ing.stackSize));
   }
 
-  for (const gen of recipe.genericIngredients) {
-    if (!keywordMap) continue;
-    const best = getGenericIngredientOwned(gen.itemKeys, inventoryMap, keywordMap);
-    times = Math.min(times, Math.floor(best / gen.stackSize));
+  if (keywordMap) {
+    // Group generic ingredients by keyword key — multiple lines with the same keyword
+    // draw from the same inventory pool (e.g. 3x "CorpseLimb" = 3 from the same pool)
+    const keywordTotals = new Map<string, number>();
+    for (const gen of recipe.genericIngredients) {
+      const key = gen.itemKeys.join(',');
+      keywordTotals.set(key, (keywordTotals.get(key) ?? 0) + gen.stackSize);
+    }
+    for (const [key, totalNeeded] of keywordTotals) {
+      const itemKeys = key.split(',');
+      const owned = getGenericIngredientOwned(itemKeys, inventoryMap, keywordMap);
+      times = Math.min(times, Math.floor(owned / totalNeeded));
+    }
   }
 
   return times === Infinity ? 0 : times;
@@ -100,30 +109,40 @@ export function analyzeRecipe(
     }
   }
 
-  for (const gen of recipe.genericIngredients) {
-    if (!keywordMap) continue;
-    let bestQuantity = 0;
-    let bestValue = 0;
-    for (const keyword of gen.itemKeys) {
-      const itemIds = keywordMap.get(keyword) ?? [];
-      for (const itemId of itemIds) {
-        const owned = inventoryMap.get(parseInt(itemId, 10));
-        if (owned && owned.quantity >= gen.stackSize) {
-          const available = Math.floor(owned.quantity / gen.stackSize);
-          if (available > bestQuantity) {
-            bestQuantity = available;
-            bestValue = owned.value;
+  if (keywordMap) {
+    // Group generic ingredients by keyword — multiple lines with the same keyword
+    // draw from the same inventory pool
+    const groups = new Map<string, { totalStackSize: number; desc: string; itemKeys: string[] }>();
+    for (const gen of recipe.genericIngredients) {
+      const key = gen.itemKeys.join(',');
+      const existing = groups.get(key);
+      if (existing) {
+        existing.totalStackSize += gen.stackSize;
+      } else {
+        groups.set(key, { totalStackSize: gen.stackSize, desc: gen.desc, itemKeys: gen.itemKeys });
+      }
+    }
+
+    for (const { totalStackSize, desc, itemKeys } of groups.values()) {
+      let totalOwned = 0;
+      let cheapestValue = Infinity;
+      for (const keyword of itemKeys) {
+        for (const itemId of keywordMap.get(keyword) ?? []) {
+          const owned = inventoryMap.get(parseInt(itemId, 10));
+          if (owned && owned.quantity > 0) {
+            totalOwned += owned.quantity;
+            if (owned.value < cheapestValue) cheapestValue = owned.value;
           }
         }
       }
-    }
-    if (bestQuantity === 0) {
-      hasAllIngredients = false;
-      missingIngredients.push(gen.desc);
-      timesCraftable = 0;
-    } else {
-      timesCraftable = Math.min(timesCraftable, bestQuantity);
-      ingredientCost += bestValue * gen.stackSize;
+      if (totalOwned < totalStackSize) {
+        hasAllIngredients = false;
+        missingIngredients.push(desc);
+        timesCraftable = 0;
+      } else {
+        timesCraftable = Math.min(timesCraftable, Math.floor(totalOwned / totalStackSize));
+        ingredientCost += (cheapestValue === Infinity ? 0 : cheapestValue) * totalStackSize;
+      }
     }
   }
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useKeywords, useRecipe, type Keyword } from '../api/hooks';
 import { calcProfit, calcTimesCraftable, calcVendorFillCost, getGenericIngredientOwned, loadInventory } from '../lib/crafting';
@@ -281,7 +281,19 @@ function KeywordTag({
   inventory: StoredInventory | null;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
   const kwData = keywordData?.find((kw) => kw.keyword === keyword);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setExpanded(false);
+      }
+    };
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [expanded]);
 
   const invLookup = useMemo(() => {
     if (!inventory) return null;
@@ -303,7 +315,7 @@ function KeywordTag({
   }, [kwData, invLookup]);
 
   return (
-    <span className="relative inline-block">
+    <span ref={ref} className="relative inline-block">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}

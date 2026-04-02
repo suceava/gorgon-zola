@@ -194,7 +194,7 @@ export function ProfitabilityResults({ inventory, character, recipes, recipesLoa
                     {r.recipe.name}
                   </Link>
                 </td>
-                <td className={`px-3 py-2 whitespace-nowrap ${r.hasSkill ? 'text-gray-400' : 'text-red-400'}`}>
+                <td className={`px-3 py-2 whitespace-nowrap ${r.hasSkill ? 'text-green-400' : 'text-red-400'}`}>
                   {r.recipe.skill} {r.recipe.skillLevelReq}
                 </td>
                 <td className="px-3 py-2">
