@@ -43,7 +43,11 @@ export function buildInventoryMap(inventory: StoredInventory): InventoryMap {
   return map;
 }
 
-export function calcTimesCraftable(recipe: Recipe, inventoryMap: Map<number, number>): number {
+export function calcTimesCraftable(
+  recipe: Recipe,
+  inventoryMap: Map<number, number>,
+  keywordMap?: Map<string, string[]> | null,
+): number {
   let times = Infinity;
 
   for (const ing of recipe.ingredients) {
@@ -51,7 +55,12 @@ export function calcTimesCraftable(recipe: Recipe, inventoryMap: Map<number, num
     times = Math.min(times, Math.floor(owned / ing.stackSize));
   }
 
-  // Generic ingredients (itemKeys are keyword strings, not item IDs) — skip, can't resolve on frontend
+  for (const gen of recipe.genericIngredients) {
+    if (!keywordMap) continue;
+    const best = getGenericIngredientOwned(gen.itemKeys, inventoryMap, keywordMap);
+    times = Math.min(times, Math.floor(best / gen.stackSize));
+  }
+
   return times === Infinity ? 0 : times;
 }
 
@@ -135,6 +144,22 @@ export function analyzeRecipe(
     hasAllIngredients,
     missingIngredients,
   };
+}
+
+/** Find the best owned quantity for a generic ingredient by resolving its keywords to item IDs. */
+export function getGenericIngredientOwned(
+  itemKeys: string[],
+  inventoryMap: Map<number, number>,
+  keywordMap: Map<string, string[]>,
+): number {
+  let best = 0;
+  for (const kw of itemKeys) {
+    for (const itemId of keywordMap.get(kw) ?? []) {
+      const qty = inventoryMap.get(parseInt(itemId, 10)) ?? 0;
+      if (qty > best) best = qty;
+    }
+  }
+  return best;
 }
 
 export function formatCouncils(amount: number): string {

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useRecipe } from '../api/hooks';
-import { calcProfit, calcTimesCraftable, calcVendorFillCost, loadInventory } from '../lib/crafting';
+import { useKeywords, useRecipe } from '../api/hooks';
+import { calcProfit, calcTimesCraftable, calcVendorFillCost, getGenericIngredientOwned, loadInventory } from '../lib/crafting';
 import type { RecipeSource } from '../types/recipes';
 
 export function RecipePage() {
@@ -18,11 +18,29 @@ export function RecipePage() {
     return map;
   }, [inventory]);
 
+  // Collect keywords from generic ingredients to resolve against inventory
+  const keywords = useMemo(() => {
+    if (!recipe) return [];
+    const kws = new Set<string>();
+    for (const gen of recipe.genericIngredients) {
+      for (const kw of gen.itemKeys) kws.add(kw);
+    }
+    return Array.from(kws);
+  }, [recipe]);
+
+  const { data: keywordData } = useKeywords(keywords);
+  const keywordMap = useMemo(() => {
+    if (!keywordData) return null;
+    const map = new Map<string, string[]>();
+    for (const kw of keywordData) map.set(kw.keyword, kw.itemIds);
+    return map;
+  }, [keywordData]);
+
   if (isLoading) return <p className="text-gray-400">Loading...</p>;
   if (error) return <p className="text-red-400">Failed to load recipe: {(error as Error).message}</p>;
   if (!recipe) return <p className="text-gray-500">Recipe not found.</p>;
 
-  const timesCraftable = inventoryMap ? calcTimesCraftable(recipe, inventoryMap) : null;
+  const timesCraftable = inventoryMap ? calcTimesCraftable(recipe, inventoryMap, keywordMap) : null;
 
   return (
     <div className="space-y-6">
@@ -83,15 +101,27 @@ export function RecipePage() {
                 </li>
               );
             })}
-            {recipe.genericIngredients.map((ing, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <span className="text-gray-400">{ing.stackSize}x</span>
-                <span className="text-gray-300">{ing.desc}</span>
-                <span className="text-xs px-1.5 py-0.5 bg-purple-900/50 text-purple-300 rounded">
-                  {ing.itemKeys.join(', ')}
-                </span>
-              </li>
-            ))}
+            {recipe.genericIngredients.map((ing, i) => {
+              const bestOwned = inventoryMap && keywordMap
+                ? getGenericIngredientOwned(ing.itemKeys, inventoryMap, keywordMap)
+                : null;
+              return (
+                <li key={i} className="flex items-center gap-2">
+                  <span className="text-gray-400">{ing.stackSize}x</span>
+                  <span className="text-gray-300">{ing.desc}</span>
+                  <span className="text-xs px-1.5 py-0.5 bg-purple-900/50 text-purple-300 rounded">
+                    {ing.itemKeys.join(', ')}
+                  </span>
+                  {bestOwned != null && (
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                      bestOwned >= ing.stackSize ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'
+                    }`}>
+                      {bestOwned} owned
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

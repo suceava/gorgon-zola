@@ -53,7 +53,20 @@ export function ItemProfitPage() {
           {' > Recipes Using This Item'}
         </div>
         <h1 className="text-2xl font-bold">Recipes Using {item.name}</h1>
-        <p className="text-sm text-gray-400">{item.value.toLocaleString()} councils</p>
+        <div className="flex items-center gap-3 text-lg">
+          <span className="text-amber-400 font-semibold">{item.value.toLocaleString()}c</span>
+          {(() => {
+            const owned = inventory?.items.find((i) => String(i.typeId) === id)?.quantity;
+            return owned != null ? (
+              <>
+                <span className="text-gray-500">·</span>
+                <span className="text-green-400">{owned}x owned</span>
+                <span className="text-gray-500">·</span>
+                <span className="text-gray-300">{(item.value * owned).toLocaleString()}c total</span>
+              </>
+            ) : null;
+          })()}
+        </div>
       </div>
 
       {hasData ? (
