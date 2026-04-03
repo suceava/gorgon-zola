@@ -235,7 +235,7 @@ export function findCraftableSubRecipe(
   visited: Set<number>,
   depth: number,
 ): Recipe | null {
-  if (depth > 3 || visited.has(itemId)) return null;
+  if (depth > 5 || visited.has(itemId)) return null;
   visited.add(itemId);
 
   const producers = producerIndex.get(itemId);

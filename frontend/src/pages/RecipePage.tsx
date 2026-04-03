@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useKeywords, useRecipe, useRecipes, type Keyword } from '../api/hooks';
-import { buildInventoryMap, buildProducerIndex, calcProfit, calcTimesCraftable, calcVendorFillCost, findCraftableSubRecipe, getGenericIngredientOwned, loadInventory } from '../lib/crafting';
-import type { StoredInventory } from '../types/character';
+import { useKeywords, useRecipe, useRecipes } from '../api/hooks';
+import { CraftingTree } from '../components/CraftingTree';
+import { InfoTip } from '../components/InfoTip';
+import { buildInventoryMap, buildProducerIndex, calcProfit, calcTimesCraftable, calcVendorFillCost, loadInventory } from '../lib/crafting';
 import type { RecipeSource } from '../types/recipes';
 
 export function RecipePage() {
@@ -69,72 +70,14 @@ export function RecipePage() {
 
       {/* Ingredients */}
       {(recipe.ingredients.length > 0 || recipe.genericIngredients.length > 0) && (
-        <div className="bg-gray-800 rounded-lg p-4 space-y-3">
-          <h2 className="text-lg font-semibold">Ingredients</h2>
-          <ul className="space-y-2 text-sm">
-            {recipe.ingredients.map((ing) => {
-              const ownedQty = inventoryMap ? (inventoryMap.get(ing.itemId)?.quantity ?? 0) : null;
-              return (
-                <li key={ing.itemId} className="flex items-center gap-2">
-                  <span className="text-gray-400">{ing.stackSize}x</span>
-                  <Link to={`/items/${ing.itemId}`} className="text-blue-400 hover:text-blue-300">
-                    {ing.itemName}
-                  </Link>
-                  <span className="text-gray-500 text-xs">
-                    ({ing.stackSize > 1 ? `${ing.value.toLocaleString()}c x ${ing.stackSize} = ${(ing.value * ing.stackSize).toLocaleString()}c` : `${ing.value.toLocaleString()}c`})
-                  </span>
-                  {ing.chanceToConsume != null && ing.chanceToConsume < 1 && (
-                    <span className="text-xs text-gray-500">
-                      {Math.round(ing.chanceToConsume * 100)}% consumed
-                    </span>
-                  )}
-                  {ownedQty != null && ownedQty >= ing.stackSize && (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-green-900/50 text-green-400">
-                      {ownedQty} owned
-                    </span>
-                  )}
-                  {ownedQty != null && ownedQty < ing.stackSize && (() => {
-                    const subRecipe = producerIndex
-                      ? findCraftableSubRecipe(ing.itemId, inventoryMap!, producerIndex, new Set(), 0)
-                      : null;
-                    return subRecipe ? (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-400">
-                        craft via <Link to={`/recipes/${subRecipe.id}`} className="underline">{subRecipe.name}</Link>
-                      </span>
-                    ) : (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-red-900/50 text-red-400">
-                        {ownedQty} owned
-                      </span>
-                    );
-                  })()}
-                </li>
-              );
-            })}
-            {recipe.genericIngredients.map((ing, i) => {
-              const bestOwned = inventoryMap && keywordMap
-                ? getGenericIngredientOwned(ing.itemKeys, inventoryMap, keywordMap)
-                : null;
-              return (
-                <li key={i} className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-400">{ing.stackSize}x</span>
-                    <span className="text-gray-300">{ing.desc}</span>
-                    {ing.itemKeys.map((kw) => (
-                      <KeywordTag key={kw} keyword={kw} keywordData={keywordData} inventory={inventory} />
-                    ))}
-                    {bestOwned != null && (
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${
-                        bestOwned >= ing.stackSize ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'
-                      }`}>
-                        {bestOwned} ownedQty
-                      </span>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        <CraftingTree
+          recipe={recipe}
+          inventoryMap={inventoryMap}
+          producerIndex={producerIndex}
+          keywordMap={keywordMap}
+          keywordData={keywordData}
+          inventory={inventory}
+        />
       )}
 
       {/* Results */}
@@ -188,7 +131,10 @@ export function RecipePage() {
             <h2 className="text-lg font-semibold">Profitability</h2>
             <div className={`flex flex-wrap gap-4 text-sm`}>
               <div className="bg-gray-700/50 rounded-lg p-4 space-y-2 min-w-48 flex-1 max-w-xs">
-                <div className="text-gray-300 font-medium">Per Craft</div>
+                <div className="text-gray-300 font-medium flex items-center gap-1">
+                  Per Craft
+                  <InfoTip text="Ingredient value (opportunity cost of selling raw) vs crafted result value" />
+                </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">Cost</span>
                   <span className="font-mono text-gray-300">{Math.round(ingredientCost).toLocaleString()}c</span>
@@ -208,7 +154,10 @@ export function RecipePage() {
               </div>
               {showTotal && (
                 <div className="bg-gray-700/50 rounded-lg p-4 space-y-2 min-w-48 flex-1 max-w-xs">
-                  <div className="text-gray-300 font-medium">Total ({timesCraftable}x)</div>
+                  <div className="text-gray-300 font-medium flex items-center gap-1">
+                    Total ({timesCraftable}x)
+                    <InfoTip text="Total profit if you craft all you can with current inventory" />
+                  </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Cost</span>
                     <span className="font-mono text-gray-300">{Math.round(ingredientCost * timesCraftable).toLocaleString()}c</span>
@@ -229,7 +178,10 @@ export function RecipePage() {
               )}
               {vendorFillCost != null && (
                 <div className="bg-amber-900/20 rounded-lg p-4 space-y-2 min-w-48 flex-1 max-w-xs border border-amber-800/30">
-                  <div className="text-amber-400 font-medium">Vendor Fill (~2x)</div>
+                  <div className="text-amber-400 font-medium flex items-center gap-1">
+                    Vendor Fill (~2x)
+                    <InfoTip text="Owned ingredients at base value + missing ingredients at ~2x vendor price. Shows if it's worth buying the rest from a vendor to craft." />
+                  </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Cost</span>
                     <span className="font-mono text-gray-300">{Math.round(vendorFillCost).toLocaleString()}c</span>
@@ -252,6 +204,7 @@ export function RecipePage() {
           </div>
         );
       })()}
+
     </div>
   );
 }
@@ -279,74 +232,3 @@ function RecipeSourceLabel({ source }: { source: RecipeSource }) {
   }
 }
 
-function KeywordTag({
-  keyword,
-  keywordData,
-  inventory,
-}: {
-  keyword: string;
-  keywordData: Keyword[] | undefined;
-  inventory: StoredInventory | null;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const ref = useRef<HTMLSpanElement>(null);
-  const kwData = keywordData?.find((kw) => kw.keyword === keyword);
-
-  useEffect(() => {
-    if (!expanded) return;
-    const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setExpanded(false);
-      }
-    };
-    document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
-  }, [expanded]);
-
-  const invLookup = useMemo(() => {
-    if (!inventory) return null;
-    const map = new Map<number, number>();
-    for (const item of inventory.items) {
-      map.set(item.typeId, item.quantity);
-    }
-    return map;
-  }, [inventory]);
-
-  const items = useMemo(() => {
-    if (!kwData) return null;
-    return kwData.items
-      .map((item) => ({
-        ...item,
-        quantity: invLookup?.get(parseInt(item.id, 10)) ?? 0,
-      }))
-      .sort((a, b) => b.quantity - a.quantity);
-  }, [kwData, invLookup]);
-
-  return (
-    <span ref={ref} className="relative inline-block">
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="text-xs px-1.5 py-0.5 bg-purple-900/50 text-purple-300 rounded hover:bg-purple-800/50 cursor-pointer"
-      >
-        {keyword}
-      </button>
-      {expanded && items && (
-        <div className="absolute z-10 mt-1 left-0 bg-gray-700 border border-gray-600 rounded-lg p-2 shadow-lg min-w-48">
-          <ul className="space-y-1 text-xs">
-            {items.map((item) => (
-              <li key={item.id} className="flex items-center justify-between gap-3">
-                <Link to={`/items/${item.id}`} className="text-blue-400 hover:text-blue-300 truncate">
-                  {item.name}
-                </Link>
-                {item.quantity > 0 && (
-                  <span className="text-green-400 whitespace-nowrap">{item.quantity}x</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </span>
-  );
-}
