@@ -177,10 +177,10 @@ export function MinotaurLock() {
                   onClick={() => toggleRune(index)}
                   disabled={solving}
                   className={`w-14 h-14 rounded-md transition-all ${
-                    activeRunes.has(index)
-                      ? 'brightness-125'
-                      : 'opacity-60 hover:opacity-80'
-                  } ${solving ? 'cursor-not-allowed opacity-30' : 'cursor-pointer'}`}
+                    solving
+                      ? activeRunes.has(index) ? '' : 'invisible'
+                      : activeRunes.has(index) ? 'brightness-125' : 'opacity-60 hover:opacity-80 cursor-pointer'
+                  } ${solving ? 'cursor-not-allowed' : ''}`}
                 >
                   <img src={src} alt={`Rune ${index}`} className="w-full h-full rounded" />
                 </button>
