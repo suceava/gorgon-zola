@@ -1,8 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useRecipes } from '../api/hooks';
 import { CharacterUpload } from '../components/CharacterUpload';
 import { ProfitabilityResults } from '../components/ProfitabilityResults';
-import { loadInventory, loadCharacter } from '../lib/crafting';
+import { buildProducerIndex, loadInventory, loadCharacter } from '../lib/crafting';
 import type { StoredInventory, StoredCharacter } from '../types/character';
 
 const INV_KEY = 'gorgon-zola-game-inventory';
@@ -12,6 +12,7 @@ export function Crafting() {
   const [inventory, setInventory] = useState<StoredInventory | null>(() => loadInventory());
   const [character, setCharacter] = useState<StoredCharacter | null>(() => loadCharacter());
   const { data: recipes, isLoading: recipesLoading } = useRecipes();
+  const producerIndex = useMemo(() => recipes ? buildProducerIndex(recipes) : undefined, [recipes]);
 
   const handleInventoryUpload = useCallback((data: StoredInventory) => {
     localStorage.setItem(INV_KEY, JSON.stringify(data));
@@ -47,6 +48,7 @@ export function Crafting() {
           character={character}
           recipes={recipes ?? []}
           recipesLoading={recipesLoading}
+          producerIndex={producerIndex}
         />
       )}
     </div>

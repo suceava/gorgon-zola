@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useItem, useKeywords, useRecipes } from '../api/hooks';
 import { ProfitabilityResults } from '../components/ProfitabilityResults';
-import { calcProfit, loadInventory, loadCharacter } from '../lib/crafting';
+import { buildProducerIndex, calcProfit, loadInventory, loadCharacter } from '../lib/crafting';
 import type { StoredInventory, StoredCharacter } from '../types/character';
 import type { Recipe } from '../types/recipes';
 
@@ -29,6 +29,8 @@ export function ItemProfitPage() {
     }
     return Array.from(kws);
   }, [filteredRecipes]);
+
+  const producerIndex = useMemo(() => allRecipes ? buildProducerIndex(allRecipes) : undefined, [allRecipes]);
 
   const { data: keywordData } = useKeywords(keywords);
   const keywordMap = useMemo(() => {
@@ -76,6 +78,7 @@ export function ItemProfitPage() {
           recipes={filteredRecipes}
           recipesLoading={recipesLoading}
           keywordMap={keywordMap}
+          producerIndex={producerIndex}
         />
       ) : (
         <div className="space-y-4">

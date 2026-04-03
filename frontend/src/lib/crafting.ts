@@ -8,6 +8,12 @@ export const VENDOR_MULTIPLIER = 2;
 
 export type InventoryMap = Map<number, { quantity: number; value: number; name: string }>;
 
+export interface CraftableIngredient {
+  name: string;
+  viaRecipe: string;
+  viaRecipeId: string;
+}
+
 export interface CraftableRecipe {
   recipe: Recipe;
   ingredientCost: number;
@@ -17,8 +23,11 @@ export interface CraftableRecipe {
   totalProfit: number;
   hasAllIngredients: boolean;
   missingIngredients: string[];
+  craftableIngredients: CraftableIngredient[];
   hasSkill: boolean;
 }
+
+export type ProducerIndex = Map<number, Recipe[]>;
 
 export function loadInventory(): StoredInventory | null {
   const raw = localStorage.getItem(INV_KEY);
@@ -45,13 +54,13 @@ export function buildInventoryMap(inventory: StoredInventory): InventoryMap {
 
 export function calcTimesCraftable(
   recipe: Recipe,
-  inventoryMap: Map<number, number>,
+  inventoryMap: InventoryMap,
   keywordMap?: Map<string, string[]> | null,
 ): number {
   let times = Infinity;
 
   for (const ing of recipe.ingredients) {
-    const owned = inventoryMap.get(ing.itemId) ?? 0;
+    const owned = inventoryMap.get(ing.itemId)?.quantity ?? 0;
     times = Math.min(times, Math.floor(owned / ing.stackSize));
   }
 
@@ -86,6 +95,7 @@ export function analyzeRecipe(
   inventoryMap: InventoryMap,
   skills: Record<string, number>,
   keywordMap?: Map<string, string[]>,
+  producerIndex?: ProducerIndex,
 ): CraftableRecipe {
   const userLevel = skills[recipe.skill];
   const hasSkill = userLevel !== undefined && userLevel >= recipe.skillLevelReq;
@@ -94,18 +104,35 @@ export function analyzeRecipe(
   let timesCraftable = Infinity;
   let hasAllIngredients = true;
   const missingIngredients: string[] = [];
+  const craftableIngredients: CraftableIngredient[] = [];
 
   for (const ing of recipe.ingredients) {
     const consume = ing.chanceToConsume ?? 1;
-    ingredientCost += ing.value * ing.stackSize * consume;
 
     const owned = inventoryMap.get(ing.itemId);
     if (!owned || owned.quantity < ing.stackSize) {
-      hasAllIngredients = false;
-      missingIngredients.push(ing.itemName || ing.desc || `Item ${ing.itemId}`);
-      timesCraftable = 0;
-    } else if (timesCraftable > 0) {
-      timesCraftable = Math.min(timesCraftable, Math.floor(owned.quantity / ing.stackSize));
+      // Try to resolve via sub-recipe
+      const subRecipe = producerIndex
+        ? findCraftableSubRecipe(ing.itemId, inventoryMap, producerIndex, new Set(), 0)
+        : null;
+      if (subRecipe) {
+        craftableIngredients.push({
+          name: ing.itemName || ing.desc || `Item ${ing.itemId}`,
+          viaRecipe: subRecipe.name,
+          viaRecipeId: subRecipe.id,
+        });
+        // Use the sub-recipe's ingredient cost instead of the item's base value
+        ingredientCost += calcIngredientCost(subRecipe) * ing.stackSize * consume;
+      } else {
+        hasAllIngredients = false;
+        missingIngredients.push(ing.itemName || ing.desc || `Item ${ing.itemId}`);
+        timesCraftable = 0;
+      }
+    } else {
+      ingredientCost += ing.value * ing.stackSize * consume;
+      if (timesCraftable > 0) {
+        timesCraftable = Math.min(timesCraftable, Math.floor(owned.quantity / ing.stackSize));
+      }
     }
   }
 
@@ -162,22 +189,73 @@ export function analyzeRecipe(
     hasSkill,
     hasAllIngredients,
     missingIngredients,
+    craftableIngredients,
   };
 }
 
 /** Sum total owned quantity across all items matching a generic ingredient's keywords. */
 export function getGenericIngredientOwned(
   itemKeys: string[],
-  inventoryMap: Map<number, number>,
+  inventoryMap: InventoryMap,
   keywordMap: Map<string, string[]>,
 ): number {
   let total = 0;
   for (const kw of itemKeys) {
     for (const itemId of keywordMap.get(kw) ?? []) {
-      total += inventoryMap.get(parseInt(itemId, 10)) ?? 0;
+      total += inventoryMap.get(parseInt(itemId, 10))?.quantity ?? 0;
     }
   }
   return total;
+}
+
+/** Build a reverse index: itemId → recipes that produce it. */
+export function buildProducerIndex(recipes: Recipe[]): ProducerIndex {
+  const index: ProducerIndex = new Map();
+  for (const recipe of recipes) {
+    for (const result of recipe.results) {
+      let list = index.get(result.itemId);
+      if (!list) {
+        list = [];
+        index.set(result.itemId, list);
+      }
+      list.push(recipe);
+    }
+  }
+  return index;
+}
+
+/**
+ * Check if a missing ingredient can be crafted from inventory via sub-recipes.
+ * Returns the sub-recipe if craftable, null otherwise.
+ */
+export function findCraftableSubRecipe(
+  itemId: number,
+  inventoryMap: InventoryMap,
+  producerIndex: ProducerIndex,
+  visited: Set<number>,
+  depth: number,
+): Recipe | null {
+  if (depth > 3 || visited.has(itemId)) return null;
+  visited.add(itemId);
+
+  const producers = producerIndex.get(itemId);
+  if (!producers) return null;
+
+  for (const subRecipe of producers) {
+    let canCraft = true;
+    for (const ing of subRecipe.ingredients) {
+      const owned = inventoryMap.get(ing.itemId);
+      if (owned && owned.quantity >= ing.stackSize) continue;
+      // Try to resolve recursively
+      if (!findCraftableSubRecipe(ing.itemId, inventoryMap, producerIndex, new Set(visited), depth + 1)) {
+        canCraft = false;
+        break;
+      }
+    }
+    if (canCraft) return subRecipe;
+  }
+
+  return null;
 }
 
 export function formatCouncils(amount: number): string {
@@ -213,12 +291,12 @@ export function calcProfit(recipe: Recipe): { ingredientCost: number; resultValu
 
 export function calcVendorFillCost(
   recipe: Recipe,
-  inventoryMap: Map<number, number>,
+  inventoryMap: InventoryMap,
 ): number {
   let cost = 0;
   for (const ing of recipe.ingredients) {
     const consume = ing.chanceToConsume ?? 1;
-    const owned = inventoryMap.get(ing.itemId) ?? 0;
+    const owned = inventoryMap.get(ing.itemId)?.quantity ?? 0;
     const unitPrice = owned >= ing.stackSize ? ing.value : ing.value * VENDOR_MULTIPLIER;
     cost += unitPrice * ing.stackSize * consume;
   }

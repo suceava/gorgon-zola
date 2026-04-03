@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { analyzeRecipe, buildInventoryMap, formatCouncils } from '../lib/crafting';
+import { analyzeRecipe, buildInventoryMap, formatCouncils, type ProducerIndex } from '../lib/crafting';
 import type { Recipe } from '../types/recipes';
 import type { StoredInventory, StoredCharacter } from '../types/character';
 
@@ -10,6 +10,7 @@ interface Props {
   recipes: Recipe[];
   recipesLoading: boolean;
   keywordMap?: Map<string, string[]>;
+  producerIndex?: ProducerIndex;
 }
 
 
@@ -36,7 +37,7 @@ function saveFilters(state: FilterState) {
   localStorage.setItem(FILTER_KEY, JSON.stringify(state));
 }
 
-export function ProfitabilityResults({ inventory, character, recipes, recipesLoading, keywordMap }: Props) {
+export function ProfitabilityResults({ inventory, character, recipes, recipesLoading, keywordMap, producerIndex }: Props) {
   const [sortField, setSortField] = useState<SortField>(() => loadFilters().sortField);
   const [sortAsc, setSortAsc] = useState(() => loadFilters().sortAsc);
   const [filter, setFilter] = useState<Filter>(() => loadFilters().filter);
@@ -57,8 +58,8 @@ export function ProfitabilityResults({ inventory, character, recipes, recipesLoa
         const userLevel = character.skills[recipe.skill];
         return userLevel !== undefined && userLevel >= recipe.skillLevelReq;
       })
-      .map((recipe) => analyzeRecipe(recipe, inventoryMap, character.skills, keywordMap));
-  }, [recipes, character, inventoryMap, mySkillsOnly, keywordMap]);
+      .map((recipe) => analyzeRecipe(recipe, inventoryMap, character.skills, keywordMap, producerIndex));
+  }, [recipes, character, inventoryMap, mySkillsOnly, keywordMap, producerIndex]);
 
   const availableSkills = useMemo(() => {
     const skills = new Set(craftableRecipes.map((r) => r.recipe.skill));
@@ -198,8 +199,31 @@ export function ProfitabilityResults({ inventory, character, recipes, recipesLoa
                   {r.recipe.skill} {r.recipe.skillLevelReq}
                 </td>
                 <td className="px-3 py-2">
-                  {r.hasAllIngredients ? (
+                  {r.hasAllIngredients && r.craftableIngredients.length === 0 ? (
                     <span className="text-green-400 text-xs">All owned</span>
+                  ) : r.hasAllIngredients && r.craftableIngredients.length > 0 ? (
+                    <span
+                      className="text-amber-400 text-xs cursor-help"
+                      title={r.craftableIngredients.map((c) => `${c.name} via ${c.viaRecipe}`).join(', ')}
+                    >
+                      Craftable
+                    </span>
+                  ) : r.craftableIngredients.length > 0 ? (
+                    <span className="text-xs">
+                      <span
+                        className="text-amber-400 cursor-help"
+                        title={r.craftableIngredients.map((c) => `${c.name} via ${c.viaRecipe}`).join(', ')}
+                      >
+                        {r.craftableIngredients.length} craftable
+                      </span>
+                      {' · '}
+                      <span
+                        className="text-red-400 cursor-help"
+                        title={r.missingIngredients.join(', ')}
+                      >
+                        {r.missingIngredients.length} missing
+                      </span>
+                    </span>
                   ) : (
                     <span
                       className="text-red-400 text-xs cursor-help"

@@ -1,23 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useKeywords, useRecipe, type Keyword } from '../api/hooks';
-import { calcProfit, calcTimesCraftable, calcVendorFillCost, getGenericIngredientOwned, loadInventory } from '../lib/crafting';
+import { useKeywords, useRecipe, useRecipes, type Keyword } from '../api/hooks';
+import { buildInventoryMap, buildProducerIndex, calcProfit, calcTimesCraftable, calcVendorFillCost, findCraftableSubRecipe, getGenericIngredientOwned, loadInventory } from '../lib/crafting';
 import type { StoredInventory } from '../types/character';
 import type { RecipeSource } from '../types/recipes';
 
 export function RecipePage() {
   const { id } = useParams<{ id: string }>();
   const { data: recipe, isLoading, error } = useRecipe(id!);
+  const { data: allRecipes } = useRecipes();
 
   const inventory = useMemo(() => loadInventory(), []);
-  const inventoryMap = useMemo(() => {
-    if (!inventory) return null;
-    const map = new Map<number, number>();
-    for (const item of inventory.items) {
-      map.set(item.typeId, item.quantity);
-    }
-    return map;
-  }, [inventory]);
+  const inventoryMap = useMemo(() => inventory ? buildInventoryMap(inventory) : null, [inventory]);
 
   // Collect keywords from generic ingredients to resolve against inventory
   const keywords = useMemo(() => {
@@ -36,6 +30,8 @@ export function RecipePage() {
     for (const kw of keywordData) map.set(kw.keyword, kw.items.map((i) => i.id));
     return map;
   }, [keywordData]);
+
+  const producerIndex = useMemo(() => allRecipes ? buildProducerIndex(allRecipes) : null, [allRecipes]);
 
   if (isLoading) return <p className="text-gray-400">Loading...</p>;
   if (error) return <p className="text-red-400">Failed to load recipe: {(error as Error).message}</p>;
@@ -77,7 +73,7 @@ export function RecipePage() {
           <h2 className="text-lg font-semibold">Ingredients</h2>
           <ul className="space-y-2 text-sm">
             {recipe.ingredients.map((ing) => {
-              const owned = inventoryMap ? (inventoryMap.get(ing.itemId) ?? 0) : null;
+              const ownedQty = inventoryMap ? (inventoryMap.get(ing.itemId)?.quantity ?? 0) : null;
               return (
                 <li key={ing.itemId} className="flex items-center gap-2">
                   <span className="text-gray-400">{ing.stackSize}x</span>
@@ -92,13 +88,25 @@ export function RecipePage() {
                       {Math.round(ing.chanceToConsume * 100)}% consumed
                     </span>
                   )}
-                  {owned != null && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded ${
-                      owned >= ing.stackSize ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'
-                    }`}>
-                      {owned} owned
+                  {ownedQty != null && ownedQty >= ing.stackSize && (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-green-900/50 text-green-400">
+                      {ownedQty} owned
                     </span>
                   )}
+                  {ownedQty != null && ownedQty < ing.stackSize && (() => {
+                    const subRecipe = producerIndex
+                      ? findCraftableSubRecipe(ing.itemId, inventoryMap!, producerIndex, new Set(), 0)
+                      : null;
+                    return subRecipe ? (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-400">
+                        craft via <Link to={`/recipes/${subRecipe.id}`} className="underline">{subRecipe.name}</Link>
+                      </span>
+                    ) : (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-red-900/50 text-red-400">
+                        {ownedQty} owned
+                      </span>
+                    );
+                  })()}
                 </li>
               );
             })}
@@ -118,7 +126,7 @@ export function RecipePage() {
                       <span className={`text-xs px-1.5 py-0.5 rounded ${
                         bestOwned >= ing.stackSize ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'
                       }`}>
-                        {bestOwned} owned
+                        {bestOwned} ownedQty
                       </span>
                     )}
                   </div>
