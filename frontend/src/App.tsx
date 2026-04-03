@@ -8,6 +8,7 @@ import { ItemProfitPage } from './pages/ItemProfitPage.tsx';
 import { RecipePage } from './pages/RecipePage.tsx';
 import { Inventory } from './pages/Inventory.tsx';
 import { Items } from './pages/Items.tsx';
+import { MinotaurLock } from './pages/MinotaurLock.tsx';
 
 export function App() {
   return (
@@ -22,6 +23,7 @@ export function App() {
           <Route path="/items/:id/profit" element={<ItemProfitPage />} />
           <Route path="/recipes/:id" element={<RecipePage />} />
           <Route path="/inventory" element={<Inventory />} />
+          <Route path="/minotaur" element={<MinotaurLock />} />
           <Route path="/admin" element={<Admin />} />
         </Routes>
       </main>
