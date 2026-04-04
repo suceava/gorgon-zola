@@ -1,28 +1,14 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useRecipes } from '../api/hooks';
-import { CharacterUpload } from '../components/CharacterUpload';
 import { ProfitabilityResults } from '../components/ProfitabilityResults';
 import { buildProducerIndex, loadInventory, loadCharacter } from '../lib/crafting';
-import type { StoredInventory, StoredCharacter } from '../types/character';
-
-const INV_KEY = 'gorgon-zola-game-inventory';
-const CHAR_KEY = 'gorgon-zola-game-character';
 
 export function Crafting() {
-  const [inventory, setInventory] = useState<StoredInventory | null>(() => loadInventory());
-  const [character, setCharacter] = useState<StoredCharacter | null>(() => loadCharacter());
+  const [inventory] = useState(() => loadInventory());
+  const [character] = useState(() => loadCharacter());
   const { data: recipes, isLoading: recipesLoading } = useRecipes();
   const producerIndex = useMemo(() => recipes ? buildProducerIndex(recipes) : undefined, [recipes]);
-
-  const handleInventoryUpload = useCallback((data: StoredInventory) => {
-    localStorage.setItem(INV_KEY, JSON.stringify(data));
-    setInventory(data);
-  }, []);
-
-  const handleCharacterUpload = useCallback((data: StoredCharacter) => {
-    localStorage.setItem(CHAR_KEY, JSON.stringify(data));
-    setCharacter(data);
-  }, []);
 
   const hasData = inventory && character;
 
@@ -31,16 +17,19 @@ export function Crafting() {
       <div>
         <h1 className="text-2xl font-bold">Crafting Profitability</h1>
         <p className="text-sm text-gray-400 mt-1">
-          Upload your game exports to find the most profitable recipes you can craft.
+          Find the most profitable recipes you can craft with your current inventory.
         </p>
       </div>
 
-      <CharacterUpload
-        inventory={inventory}
-        character={character}
-        onInventoryUpload={handleInventoryUpload}
-        onCharacterUpload={handleCharacterUpload}
-      />
+      {!hasData && (
+        <p className="text-gray-400">
+          No game data loaded.{' '}
+          <Link to="/inventory" className="text-blue-400 hover:text-blue-300">
+            Upload your game exports
+          </Link>
+          {' '}to get started.
+        </p>
+      )}
 
       {hasData && (
         <ProfitabilityResults

@@ -5,11 +5,17 @@ export interface StoredInventory {
   items: InventoryEntry[];
 }
 
+export interface InventoryLocation {
+  vault: string;
+  quantity: number;
+}
+
 export interface InventoryEntry {
   typeId: number;
   quantity: number;
   value: number;
   name: string;
+  locations: InventoryLocation[];
 }
 
 export interface StoredCharacter {

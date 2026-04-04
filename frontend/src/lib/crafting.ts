@@ -29,14 +29,75 @@ export interface CraftableRecipe {
 
 export type ProducerIndex = Map<number, Recipe[]>;
 
+export function saveRawInventory(text: string): void {
+  localStorage.setItem(INV_KEY, text);
+}
+
+export function saveRawCharacter(text: string): void {
+  localStorage.setItem(CHAR_KEY, text);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function parseRawInventory(raw: any): StoredInventory {
+  const itemMap = new Map<number, { name: string; quantity: number; value: number; locations: Map<string, number> }>();
+  for (const item of raw.Items) {
+    const vault: string = item.StorageVault ?? (item.IsInInventory ? 'Inventory' : 'Unknown');
+    const existing = itemMap.get(item.TypeID);
+    if (existing) {
+      existing.quantity += item.StackSize;
+      existing.locations.set(vault, (existing.locations.get(vault) ?? 0) + item.StackSize);
+    } else {
+      const locations = new Map<string, number>();
+      locations.set(vault, item.StackSize);
+      itemMap.set(item.TypeID, { name: item.Name, quantity: item.StackSize, value: item.Value, locations });
+    }
+  }
+  return {
+    character: raw.Character,
+    server: raw.ServerName,
+    timestamp: raw.Timestamp,
+    items: Array.from(itemMap.entries()).map(([typeId, data]) => ({
+      typeId,
+      quantity: data.quantity,
+      value: data.value,
+      name: data.name,
+      locations: Array.from(data.locations.entries()).map(([vault, quantity]) => ({ vault, quantity })),
+    })),
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function parseRawCharacter(raw: any): StoredCharacter {
+  const skills: Record<string, number> = {};
+  for (const [name, data] of Object.entries(raw.Skills)) {
+    skills[name] = (data as { Level: number }).Level;
+  }
+  return {
+    character: raw.Character,
+    server: raw.ServerName,
+    timestamp: raw.Timestamp,
+    skills,
+  };
+}
+
 export function loadInventory(): StoredInventory | null {
-  const raw = localStorage.getItem(INV_KEY);
-  return raw ? JSON.parse(raw) : null;
+  const text = localStorage.getItem(INV_KEY);
+  if (!text) return null;
+  const parsed = JSON.parse(text);
+  // Raw game JSON has "Items", old processed format has "items"
+  if (parsed.Items) return parseRawInventory(parsed);
+  // Legacy format — clear it so user re-uploads
+  localStorage.removeItem(INV_KEY);
+  return null;
 }
 
 export function loadCharacter(): StoredCharacter | null {
-  const raw = localStorage.getItem(CHAR_KEY);
-  return raw ? JSON.parse(raw) : null;
+  const text = localStorage.getItem(CHAR_KEY);
+  if (!text) return null;
+  const parsed = JSON.parse(text);
+  if (parsed.Skills) return parseRawCharacter(parsed);
+  localStorage.removeItem(CHAR_KEY);
+  return null;
 }
 
 /**

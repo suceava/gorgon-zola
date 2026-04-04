@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import type { StoredInventory, StoredCharacter } from '../types/character';
+import { parseRawInventory, parseRawCharacter, saveRawInventory, saveRawCharacter } from '../lib/crafting';
 
 interface Props {
   inventory: StoredInventory | null;
@@ -17,27 +18,9 @@ export function CharacterUpload({ inventory, character, onInventoryUpload, onCha
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      const raw = JSON.parse(reader.result as string);
-      const itemMap = new Map<number, { name: string; quantity: number; value: number }>();
-      for (const item of raw.Items) {
-        const existing = itemMap.get(item.TypeID);
-        if (existing) {
-          existing.quantity += item.StackSize;
-        } else {
-          itemMap.set(item.TypeID, { name: item.Name, quantity: item.StackSize, value: item.Value });
-        }
-      }
-      onInventoryUpload({
-        character: raw.Character,
-        server: raw.ServerName,
-        timestamp: raw.Timestamp,
-        items: Array.from(itemMap.entries()).map(([typeId, data]) => ({
-          typeId,
-          quantity: data.quantity,
-          value: data.value,
-          name: data.name,
-        })),
-      });
+      const text = reader.result as string;
+      saveRawInventory(text);
+      onInventoryUpload(parseRawInventory(JSON.parse(text)));
     };
     reader.readAsText(file);
     e.target.value = '';
@@ -48,17 +31,9 @@ export function CharacterUpload({ inventory, character, onInventoryUpload, onCha
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      const raw = JSON.parse(reader.result as string);
-      const skills: Record<string, number> = {};
-      for (const [name, data] of Object.entries(raw.Skills)) {
-        skills[name] = (data as { Level: number }).Level;
-      }
-      onCharacterUpload({
-        character: raw.Character,
-        server: raw.ServerName,
-        timestamp: raw.Timestamp,
-        skills,
-      });
+      const text = reader.result as string;
+      saveRawCharacter(text);
+      onCharacterUpload(parseRawCharacter(JSON.parse(text)));
     };
     reader.readAsText(file);
     e.target.value = '';
@@ -68,34 +43,24 @@ export function CharacterUpload({ inventory, character, onInventoryUpload, onCha
 
   if (hasData) {
     return (
-      <div className="bg-gray-800 rounded-lg p-4 flex flex-wrap items-center justify-between gap-4">
-        <div className="text-sm text-gray-300">
-          <span className="font-semibold text-white">{character.character}</span> on {character.server}
-          <span className="mx-2 text-gray-600">|</span>
-          <span>{inventory.items.length} unique items</span>
-          <span className="mx-2 text-gray-600">|</span>
-          <span>{Object.keys(character.skills).length} skills</span>
-          <span className="mx-2 text-gray-600">|</span>
-          <span className="text-gray-500">
-            Exported {new Date(inventory.timestamp).toLocaleDateString()}
-          </span>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => invRef.current?.click()}
-            className="text-sm px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
-          >
-            Re-upload Inventory
-          </button>
-          <button
-            onClick={() => charRef.current?.click()}
-            className="text-sm px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
-          >
-            Re-upload Character
-          </button>
-          <input ref={invRef} type="file" accept=".json" onChange={handleInventoryFile} className="hidden" />
-          <input ref={charRef} type="file" accept=".json" onChange={handleCharacterFile} className="hidden" />
-        </div>
+      <div className="flex items-center gap-4">
+        <span className="text-sm text-gray-500">
+          Exported {new Date(inventory.timestamp).toLocaleDateString()}
+        </span>
+        <button
+          onClick={() => invRef.current?.click()}
+          className="text-sm px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+        >
+          Re-upload Inventory
+        </button>
+        <button
+          onClick={() => charRef.current?.click()}
+          className="text-sm px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+        >
+          Re-upload Character
+        </button>
+        <input ref={invRef} type="file" accept=".json" onChange={handleInventoryFile} className="hidden" />
+        <input ref={charRef} type="file" accept=".json" onChange={handleCharacterFile} className="hidden" />
       </div>
     );
   }
