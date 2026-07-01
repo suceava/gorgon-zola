@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc:*)",
-      "Read(//Users/dan/Downloads/**)"
+      "Read(//Users/dan/Downloads/**)",
+      "Bash(gh repo *)"
     ]
   }
 }
